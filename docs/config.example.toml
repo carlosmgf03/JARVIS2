@@ -1,0 +1,25 @@
+# Ejemplo de config.toml de JARVIS (sin secretos).
+# Cópialo al directorio de configuración de la app (ver docs/configuration.md)
+# o indica su ruta con JARVIS_CONFIG_FILE. Las variables de entorno tienen prioridad.
+# Las claves API NO van aquí: usa `jarvis secrets set openai`.
+
+JARVIS_USER_NAME = "Ana"
+JARVIS_VAULT_PATH = "/Users/yo/Obsidian/MiVault"
+JARVIS_NOTES_FOLDER = "JARVIS"
+JARVIS_TASKS_FILE = "JARVIS/Tareas.md"
+JARVIS_DAILY_FOLDER = "Diario"
+JARVIS_PROJECTS_FOLDER = "Proyectos"
+
+OPENAI_REALTIME_MODEL = "gpt-realtime-2.1"
+OPENAI_REALTIME_VOICE = "cedar"
+OPENAI_REALTIME_VAD = "semantic_vad"
+OPENAI_REALTIME_NOISE_REDUCTION = "far_field"
+
+JARVIS_POLICY_WRITE = "confirm"
+JARVIS_POLICY_DELEGATE = "allow"
+JARVIS_SAVE_TRANSCRIPTS = false
+JARVIS_TRANSCRIPT_RETENTION_DAYS = 7
+
+# Internet y correo (opcional)
+JARVIS_WEATHER_LOCATION = "Madrid"
+# JARVIS_EMAIL_ADDRESS = "tu.correo@gmail.com"   # contraseña: `jarvis secrets set email`

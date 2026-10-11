@@ -1,0 +1,21 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permisos de la ventana principal de JARVIS. Solo eventos básicos y los comandos de la capa de orquestación; sin acceso al sistema de ficheros, shell ni red desde la interfaz.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "allow-app-status",
+    "allow-realtime-session",
+    "allow-tool-invoke",
+    "allow-approval-decide",
+    "allow-approvals-pending",
+    "allow-text-send",
+    "allow-text-reset",
+    "allow-audit-recent",
+    "allow-transcript-save",
+    "allow-transcripts-clear",
+    "allow-usage-record",
+    "allow-usage-summary"
+  ]
+}

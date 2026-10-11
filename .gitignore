@@ -426,3 +426,18 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+## ---------------------------------------------------------------- JARVIS
+# Secretos: nunca en el repositorio (ver docs/security.md).
+.env
+.env.*
+!.env.example
+config.toml
+!docs/config.example.toml
+# Compilación
+/dist/
+/target/
+/src-tauri/target/
+/src-tauri/gen/
+# El binario CLI de jarvis-core vive en src/bin (la plantilla de VS ignora bin/).
+!crates/jarvis-core/src/bin/*

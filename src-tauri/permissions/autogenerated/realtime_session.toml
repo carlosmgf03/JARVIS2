@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-realtime-session"
+description = "Enables the realtime_session command without any pre-configured scope."
+commands.allow = ["realtime_session"]
+
+[[permission]]
+identifier = "deny-realtime-session"
+description = "Denies the realtime_session command without any pre-configured scope."
+commands.deny = ["realtime_session"]

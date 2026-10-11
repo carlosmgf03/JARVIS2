@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-audit-recent"
+description = "Enables the audit_recent command without any pre-configured scope."
+commands.allow = ["audit_recent"]
+
+[[permission]]
+identifier = "deny-audit-recent"
+description = "Denies the audit_recent command without any pre-configured scope."
+commands.deny = ["audit_recent"]
