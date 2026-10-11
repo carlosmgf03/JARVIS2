@@ -79,12 +79,40 @@ Las tareas se leen con la sintaxis de casillas de Obsidian (`- [ ]`, `- [x]`) y 
 | `ANTHROPIC_MODEL` | `claude-opus-5-5` | Modelo para delegación y texto. |
 | `JARVIS_TEXT_PROVIDER` | `auto` | `auto` (Claude si hay clave; si no, comandos), `claude`, `commands`. |
 
+### Internet
+
+| Variable | Por defecto | Descripción |
+|---|---|---|
+| `JARVIS_WEATHER_LOCATION` | — | Ciudad predeterminada para el tiempo (p. ej. `Madrid` o `Bogotá, Colombia`). El tiempo usa **Open-Meteo**: gratis, sin cuenta ni clave. |
+| `OPENAI_SEARCH_MODEL` | `gpt-5.6-luna` | Modelo para `web_search` (API Responses con la herramienta `web_search`). Es el predeterminado de `@openai/agents-openai` 0.18.0. Usa la misma clave de OpenAI. |
+
+Leer páginas (`fetch_page`) y abrirlas en el navegador (`open_url`) no necesitan configuración.
+
+### Correo (opcional, solo lectura)
+
+| Variable | Por defecto | Descripción |
+|---|---|---|
+| `JARVIS_EMAIL_ADDRESS` | — | Tu dirección. Sin ella, las herramientas de correo no se ofrecen. |
+| `JARVIS_EMAIL_IMAP_HOST` | según el dominio | Se deduce para Gmail (`imap.gmail.com`), iCloud (`imap.mail.me.com`) y Yahoo. Para otros proveedores, indícalo. |
+| `JARVIS_EMAIL_IMAP_PORT` | `993` | IMAP con TLS. |
+| `JARVIS_EMAIL_MAILBOX` | `INBOX` | Buzón que se consulta. |
+| `JARVIS_EMAIL_PASSWORD` | — | Mejor guárdala con `jarvis secrets set email`. Debe ser una **contraseña de aplicación**, no tu contraseña normal. |
+
+Cómo obtener la contraseña de aplicación:
+
+- **Gmail**: activa la verificación en dos pasos en tu cuenta de Google y crea una en <https://myaccount.google.com/apppasswords>. Asegúrate de que IMAP está activado en Gmail (Configuración → Reenvío y correo POP/IMAP).
+- **iCloud**: <https://account.apple.com> → Inicio de sesión y seguridad → Contraseñas específicas de apps.
+- **Outlook/Hotmail**: Microsoft ya no admite contraseñas para IMAP en cuentas personales (exige OAuth); de momento no es compatible.
+
 ### Política, tiempos y retención
 
 | Variable | Por defecto | Descripción |
 |---|---|---|
 | `JARVIS_POLICY_WRITE` | `confirm` | `allow`, `confirm` o `deny` para crear notas y añadir tareas. |
 | `JARVIS_POLICY_DELEGATE` | `allow` | Igual para enviar contexto a Claude. |
+| `JARVIS_POLICY_WEB` | `allow` | Tiempo, búsqueda web y leer páginas. |
+| `JARVIS_POLICY_OPEN` | `confirm` | Abrir páginas en el navegador. |
+| `JARVIS_POLICY_EMAIL` | `allow` | Leer correo. |
 | `JARVIS_TOOL_TIMEOUT_MS` | `15000` | Límite de las lecturas en la Vault. |
 | `JARVIS_DELEGATE_TIMEOUT_MS` | `120000` | Límite de la delegación en Claude. |
 | `JARVIS_APPROVAL_TIMEOUT_MS` | `120000` | Tiempo para confirmar; al expirar se deniega. |
@@ -93,7 +121,7 @@ Las tareas se leen con la sintaxis de casillas de Obsidian (`- [ ]`, `- [x]`) y 
 
 ### Solo pruebas
 
-`JARVIS_OPENAI_BASE_URL` y `JARVIS_ANTHROPIC_BASE_URL` redirigen las llamadas a servidores simulados. No las uses en producción.
+`JARVIS_OPENAI_BASE_URL`, `JARVIS_ANTHROPIC_BASE_URL`, `JARVIS_WEATHER_BASE_URL`, `JARVIS_GEOCODING_BASE_URL`, `JARVIS_WEB_ALLOW_PRIVATE` y `JARVIS_EMAIL_INSECURE_PLAINTEXT` existen solo para pruebas con servidores simulados. No las uses en producción.
 
 ## Permisos de micrófono
 

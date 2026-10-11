@@ -129,4 +129,10 @@ export const TOOL_LABEL: Record<string, string> = {
   create_note: 'Creando nota',
   add_task: 'Añadiendo tarea',
   delegate_to_claude: 'Consultando a Claude',
+  get_weather: 'Consultando el tiempo',
+  web_search: 'Buscando en Internet',
+  fetch_page: 'Leyendo la página',
+  open_url: 'Abriendo el navegador',
+  list_emails: 'Revisando tu correo',
+  read_email: 'Leyendo el correo',
 };

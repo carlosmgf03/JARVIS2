@@ -130,9 +130,12 @@ class UnavailableBackend implements Backend {
         voices: ['cedar', 'marin'],
         transcription_enabled: false,
         text_provider: 'commands',
-        policy: { write: 'confirm', delegate: 'allow' },
+        policy: { write: 'confirm', delegate: 'allow', web: 'allow', open: 'confirm', email: 'allow' },
         save_transcripts: false,
         transcript_retention_days: 0,
+        web_search: false,
+        email: null,
+        weather_location: null,
         voice_available: false,
         limitations: [
           'Se está ejecutando en un navegador sin la capa de orquestación (Tauri). No hay voz real ni acceso a la Vault.',

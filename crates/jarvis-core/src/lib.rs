@@ -7,6 +7,7 @@ pub mod anthropic;
 pub mod approvals;
 pub mod audit;
 pub mod config;
+pub mod email;
 pub mod error;
 pub mod executor;
 pub mod http;
@@ -18,6 +19,7 @@ pub mod text_agent;
 pub mod tools;
 pub mod transcripts;
 pub mod vault;
+pub mod web;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -29,6 +31,7 @@ use crate::anthropic::ClaudeClient;
 use crate::approvals::ApprovalBroker;
 use crate::audit::AuditLog;
 use crate::config::{Config, REALTIME_VOICES};
+use crate::email::EmailClient;
 use crate::error::Result;
 use crate::executor::{Executor, ExecutorParts, Timeouts};
 use crate::policy::Policy;
@@ -38,11 +41,12 @@ use crate::text_agent::TextAgent;
 use crate::tools::ToolSpec;
 use crate::transcripts::{TranscriptStore, UsageLog};
 use crate::vault::Vault;
+use crate::web::{SystemOpener, UrlOpener, WebClient};
 
 /// Fachada con todos los servicios de JARVIS.
 pub struct Jarvis {
     pub config: Config,
-    credentials: Credentials,
+    credentials: Arc<Credentials>,
     pub approvals: Arc<ApprovalBroker>,
     pub audit: Arc<AuditLog>,
     pub executor: Arc<Executor>,
@@ -72,6 +76,10 @@ pub struct Status {
     pub policy: Policy,
     pub save_transcripts: bool,
     pub transcript_retention_days: u32,
+    /// Capacidades opcionales activas.
+    pub web_search: bool,
+    pub email: Option<String>,
+    pub weather_location: Option<String>,
     /// Verdadero si hay credenciales para intentar una sesión de voz real.
     pub voice_available: bool,
     /// Motivos por los que la app está en modo de prueba (vacío = todo listo).
@@ -89,6 +97,17 @@ impl Jarvis {
     /// `data_dir`: directorio privado de la app (auditoría, transcripciones
     /// opcionales, métricas). `None` = todo en memoria (pruebas).
     pub fn new(config: Config, credentials: Credentials, data_dir: Option<PathBuf>) -> Self {
+        Self::with_opener(config, credentials, data_dir, Some(Arc::new(SystemOpener)))
+    }
+
+    /// Igual que [`Jarvis::new`] pero con un abridor de URLs propio (o ninguno).
+    pub fn with_opener(
+        config: Config,
+        credentials: Credentials,
+        data_dir: Option<PathBuf>,
+        opener: Option<Arc<dyn UrlOpener>>,
+    ) -> Self {
+        let credentials = Arc::new(credentials);
         let approvals = Arc::new(ApprovalBroker::new());
         let audit = Arc::new(AuditLog::new(
             data_dir.as_ref().map(|d| d.join("audit.log")),
@@ -112,6 +131,13 @@ impl Jarvis {
             approvals: approvals.clone(),
             audit: audit.clone(),
             clock: Arc::new(chrono::Local::now),
+            web: Arc::new(WebClient::new(config.web.clone(), &config.openai_base_url)),
+            email: EmailClient::new(&config.email).map(Arc::new),
+            opener,
+            secrets: {
+                let c = credentials.clone();
+                Arc::new(move |p| c.get(p))
+            },
         }));
         let text = TextAgent::new(executor.clone(), claude, config.text_provider);
         let transcripts = TranscriptStore::new(
@@ -174,6 +200,14 @@ impl Jarvis {
             policy: self.config.policy,
             save_transcripts: self.transcripts.enabled,
             transcript_retention_days: self.transcripts.retention_days,
+            web_search: self.executor.availability().web_search,
+            email: self
+                .executor
+                .availability()
+                .email
+                .then(|| self.config.email.address.clone())
+                .flatten(),
+            weather_location: self.config.web.weather_location.clone(),
             limitations,
         }
     }

@@ -20,7 +20,7 @@ use jarvis_core::Jarvis;
 
 fn usage() -> ExitCode {
     eprintln!(
-        "Uso:\n  jarvis secrets set|delete openai|anthropic\n  jarvis secrets status\n  jarvis doctor\n  jarvis tool <nombre> '<json>'\n  jarvis text \"<mensaje>\""
+        "Uso:\n  jarvis secrets set|delete openai|anthropic|email\n  jarvis secrets status\n  jarvis doctor\n  jarvis tool <nombre> '<json>'\n  jarvis text \"<mensaje>\""
     );
     ExitCode::from(2)
 }
@@ -38,7 +38,7 @@ async fn main() -> ExitCode {
         ["secrets", "delete", p] => secrets_delete(p),
         ["secrets", "status"] => {
             let c = Credentials::system();
-            for p in [Provider::OpenAi, Provider::Anthropic] {
+            for p in [Provider::OpenAi, Provider::Anthropic, Provider::Email] {
                 println!("{:<10} {}", p.keychain_user(), describe(c.source(p)));
             }
             ExitCode::SUCCESS
@@ -62,7 +62,12 @@ fn secrets_set(p: &str) -> ExitCode {
     let Some(provider) = Provider::parse(p) else {
         return usage();
     };
-    let value = match rpassword::prompt_password(format!("Clave de {p} (no se mostrará): ")) {
+    let label = if provider == Provider::Email {
+        "Contraseña de aplicación del correo"
+    } else {
+        "Clave"
+    };
+    let value = match rpassword::prompt_password(format!("{label} de {p} (no se mostrará): ")) {
         Ok(v) if !v.trim().is_empty() => v,
         _ => {
             eprintln!("No se ha introducido ninguna clave.");
@@ -123,6 +128,26 @@ async fn doctor() -> ExitCode {
         describe(s.anthropic_key)
     );
     println!("Interfaz de texto: {}", s.text_provider);
+    println!(
+        "Tiempo:            {}",
+        s.weather_location
+            .as_deref()
+            .map(|c| format!("ciudad predeterminada {c}"))
+            .unwrap_or_else(|| "sin ciudad predeterminada (JARVIS_WEATHER_LOCATION)".into())
+    );
+    println!(
+        "Búsqueda web:      {}",
+        if s.web_search {
+            "disponible"
+        } else {
+            "no disponible (falta la clave de OpenAI)"
+        }
+    );
+    match (&s.email, &j.config.email.address) {
+        (Some(e), _) => println!("Correo:            {e} (solo lectura)"),
+        (None, Some(e)) => println!("Correo:            {e} — falta la contraseña de aplicación (`jarvis secrets set email`)"),
+        (None, None) => println!("Correo:            no configurado (opcional, JARVIS_EMAIL_ADDRESS)"),
+    }
     match (&s.vault.path, &s.vault.error) {
         (Some(p), _) => println!("Vault:             {p}"),
         (_, Some(e)) => {

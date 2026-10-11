@@ -287,6 +287,19 @@ export default function App() {
           )}
         </section>
 
+        {status && (
+          <section className="panel-section" aria-label="Capacidades">
+            <h3>Capacidades</h3>
+            <ul className="caps">
+              <li className="on">Notas y tareas de Obsidian{status.vault.ok ? '' : ' — Vault no configurada'}</li>
+              <li className="on">Tiempo{status.weather_location ? ` · ciudad: ${status.weather_location}` : ' · sin ciudad predeterminada'}</li>
+              <li className={status.web_search ? 'on' : 'off'}>Búsqueda en Internet{status.web_search ? '' : ' — falta la clave de OpenAI'}</li>
+              <li className="on">Leer y abrir páginas web (abrir pide confirmación)</li>
+              <li className={status.email ? 'on' : 'off'}>{status.email ? `Correo (solo lectura) · ${status.email}` : 'Correo — no configurado'}</li>
+            </ul>
+          </section>
+        )}
+
         <section className="panel-section" aria-label="Actividad">
           <h3>Actividad verificada</h3>
           {audit.length ? (

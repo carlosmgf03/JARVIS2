@@ -16,6 +16,13 @@ pub enum RiskLevel {
     Write,
     /// Envía contexto a un proveedor externo (Claude).
     Delegate,
+    /// Consulta Internet (tiempo, búsqueda, leer una página). Sin efectos,
+    /// pero envía la consulta o la dirección a un servicio externo.
+    Web,
+    /// Abre una página en el navegador del usuario (acción externa visible).
+    OpenUrl,
+    /// Lee el correo del usuario (solo lectura, nunca envía ni borra).
+    Email,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -30,6 +37,9 @@ pub enum Decision {
 pub struct Policy {
     pub write: Decision,
     pub delegate: Decision,
+    pub web: Decision,
+    pub open: Decision,
+    pub email: Decision,
 }
 
 impl Default for Policy {
@@ -37,6 +47,9 @@ impl Default for Policy {
         Self {
             write: Decision::Confirm,
             delegate: Decision::Allow,
+            web: Decision::Allow,
+            open: Decision::Confirm,
+            email: Decision::Allow,
         }
     }
 }
@@ -47,6 +60,9 @@ impl Policy {
             RiskLevel::Read => Decision::Allow,
             RiskLevel::Write => self.write,
             RiskLevel::Delegate => self.delegate,
+            RiskLevel::Web => self.web,
+            RiskLevel::OpenUrl => self.open,
+            RiskLevel::Email => self.email,
         }
     }
 }

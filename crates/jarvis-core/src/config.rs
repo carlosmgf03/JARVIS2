@@ -21,6 +21,9 @@ pub const DEFAULT_REALTIME_MODEL: &str = "gpt-realtime-2.1";
 pub const DEFAULT_REALTIME_VOICE: &str = "cedar";
 pub const DEFAULT_TRANSCRIPTION_MODEL: &str = "gpt-4o-mini-transcribe";
 pub const DEFAULT_CLAUDE_MODEL: &str = "claude-opus-5-5";
+/// Modelo de texto para la búsqueda web (API Responses + herramienta
+/// `web_search`). Es el predeterminado de `@openai/agents-openai` 0.18.0.
+pub const DEFAULT_SEARCH_MODEL: &str = "gpt-5.6-luna";
 
 /// Voces oficiales de salida de Realtime. `marin` y `cedar` son las
 /// recomendadas por OpenAI para máxima naturalidad; todas son multilingües.
@@ -78,6 +81,56 @@ pub struct VaultConfig {
     pub projects_folder: String,
 }
 
+/// Servicios de Internet: tiempo, búsqueda web y lectura de páginas.
+#[derive(Debug, Clone, Serialize)]
+pub struct WebConfig {
+    /// Ciudad por defecto para el tiempo (p. ej. «Madrid»).
+    pub weather_location: Option<String>,
+    pub weather_base_url: String,
+    pub geocoding_base_url: String,
+    pub search_model: String,
+    /// Solo pruebas: permite leer páginas en direcciones privadas o locales.
+    pub allow_private_hosts: bool,
+}
+
+/// Lectura de correo por IMAP (solo lectura).
+#[derive(Debug, Clone, Serialize)]
+pub struct EmailConfig {
+    pub address: Option<String>,
+    pub imap_host: Option<String>,
+    pub imap_port: u16,
+    pub mailbox: String,
+    /// Solo pruebas contra un servidor local: IMAP sin TLS.
+    pub insecure_plaintext: bool,
+}
+
+impl EmailConfig {
+    /// Servidor IMAP indicado o deducido del dominio de la dirección.
+    pub fn host(&self) -> Option<String> {
+        if let Some(h) = &self.imap_host {
+            return Some(h.clone());
+        }
+        let domain = self
+            .address
+            .as_ref()?
+            .rsplit_once('@')?
+            .1
+            .to_ascii_lowercase();
+        Some(
+            match domain.as_str() {
+                "gmail.com" | "googlemail.com" => "imap.gmail.com",
+                "icloud.com" | "me.com" | "mac.com" => "imap.mail.me.com",
+                "yahoo.com" | "yahoo.es" => "imap.mail.yahoo.com",
+                "outlook.com" | "hotmail.com" | "live.com" | "outlook.es" | "hotmail.es" => {
+                    "outlook.office365.com"
+                }
+                _ => return None,
+            }
+            .to_string(),
+        )
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Config {
     pub realtime: RealtimeConfig,
@@ -92,6 +145,8 @@ pub struct Config {
     pub transcript_retention_days: u32,
     pub openai_base_url: String,
     pub anthropic_base_url: String,
+    pub web: WebConfig,
+    pub email: EmailConfig,
 }
 
 impl Config {
@@ -156,6 +211,21 @@ impl Config {
                 get("JARVIS_POLICY_DELEGATE"),
                 Decision::Allow,
                 "JARVIS_POLICY_DELEGATE",
+            )?,
+            web: parse_decision(
+                get("JARVIS_POLICY_WEB"),
+                Decision::Allow,
+                "JARVIS_POLICY_WEB",
+            )?,
+            open: parse_decision(
+                get("JARVIS_POLICY_OPEN"),
+                Decision::Confirm,
+                "JARVIS_POLICY_OPEN",
+            )?,
+            email: parse_decision(
+                get("JARVIS_POLICY_EMAIL"),
+                Decision::Allow,
+                "JARVIS_POLICY_EMAIL",
             )?,
         };
 
@@ -224,6 +294,23 @@ impl Config {
                 .unwrap_or_else(|| "https://api.openai.com/v1".into()),
             anthropic_base_url: get("JARVIS_ANTHROPIC_BASE_URL")
                 .unwrap_or_else(|| "https://api.anthropic.com/v1".into()),
+            web: WebConfig {
+                weather_location: get("JARVIS_WEATHER_LOCATION"),
+                weather_base_url: get("JARVIS_WEATHER_BASE_URL")
+                    .unwrap_or_else(|| "https://api.open-meteo.com/v1".into()),
+                geocoding_base_url: get("JARVIS_GEOCODING_BASE_URL")
+                    .unwrap_or_else(|| "https://geocoding-api.open-meteo.com/v1".into()),
+                search_model: get("OPENAI_SEARCH_MODEL")
+                    .unwrap_or_else(|| DEFAULT_SEARCH_MODEL.into()),
+                allow_private_hosts: parse_bool(get("JARVIS_WEB_ALLOW_PRIVATE"), false),
+            },
+            email: EmailConfig {
+                address: get("JARVIS_EMAIL_ADDRESS"),
+                imap_host: get("JARVIS_EMAIL_IMAP_HOST"),
+                imap_port: parse_num(get("JARVIS_EMAIL_IMAP_PORT"), 993, "JARVIS_EMAIL_IMAP_PORT")?,
+                mailbox: get("JARVIS_EMAIL_MAILBOX").unwrap_or_else(|| "INBOX".into()),
+                insecure_plaintext: parse_bool(get("JARVIS_EMAIL_INSECURE_PLAINTEXT"), false),
+            },
         })
     }
 }

@@ -8,6 +8,8 @@
 - Política de permisos con confirmación en pantalla, verificación de escrituras, idempotencia y auditoría.
 - Delegación opcional en Claude e interfaz de texto (Claude o modo comandos).
 - Reconexión sin duplicar operaciones; modo de prueba honesto; retención configurable.
+- Internet: tiempo (Open-Meteo), búsqueda web (OpenAI), leer páginas con protección SSRF y abrir páginas con confirmación.
+- Correo por IMAP, solo lectura (Gmail, iCloud, Yahoo y otros con contraseña de aplicación).
 
 ## Pendiente de validar
 
@@ -18,7 +20,7 @@
 
 1. **Palabra de activación configurable** (local, sin enviar audio hasta que se active). Se conectará a `VoiceController.start()`; mantener el micrófono apagado por defecto y un indicador visible.
 2. **Backend remoto autenticado** para distribuir la app: emisión de secretos efímeros por usuario, límites y cuotas (ver `security.md`).
-3. **Más herramientas**: completar tareas (modificación con confirmación y diff), calendario, recordatorios.
+3. **Más herramientas**: completar tareas (modificación con confirmación y diff), calendario, recordatorios, Outlook mediante OAuth, enviar correo (siempre con confirmación y vista previa).
 4. **Búsqueda semántica** en la Vault con índice local incremental, para recuperar mejores fragmentos con menos tokens.
 5. **Resumen persistente opcional** de conversaciones en la Vault (con confirmación), como memoria a largo plazo.
 6. **Proveedor de texto OpenAI** como alternativa a Claude cuando Realtime no esté disponible.

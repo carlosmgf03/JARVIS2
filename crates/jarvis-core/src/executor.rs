@@ -25,10 +25,17 @@ use tokio::sync::OnceCell;
 use crate::anthropic::ClaudeClient;
 use crate::approvals::{ApprovalBroker, ApprovalOutcome, ApprovalRequest};
 use crate::audit::{AuditEntry, AuditLog};
+use crate::email::EmailClient;
 use crate::error::{ErrorCode, JarvisError, Result};
 use crate::policy::{Decision, Policy};
+use crate::secrets::{Provider, Secret};
+use crate::tools::Availability;
 use crate::tools::{self, ToolArgs};
 use crate::vault::Vault;
+use crate::web::{UrlOpener, WebClient};
+
+/// Lectura de credenciales bajo demanda (la clave nunca se guarda aquí).
+pub type SecretLookup = Arc<dyn Fn(Provider) -> Option<Secret> + Send + Sync>;
 
 const IDEMPOTENCY_CAPACITY: usize = 500;
 
@@ -124,6 +131,11 @@ pub struct Executor {
     audit: Arc<AuditLog>,
     clock: Clock,
     cache: Mutex<IdempotencyCache>,
+    web: Arc<WebClient>,
+    email: Option<Arc<EmailClient>>,
+    opener: Option<Arc<dyn UrlOpener>>,
+    secrets: SecretLookup,
+    availability: Availability,
 }
 
 #[derive(Default)]
@@ -157,6 +169,10 @@ pub struct ExecutorParts {
     pub approvals: Arc<ApprovalBroker>,
     pub audit: Arc<AuditLog>,
     pub clock: Clock,
+    pub web: Arc<WebClient>,
+    pub email: Option<Arc<EmailClient>>,
+    pub opener: Option<Arc<dyn UrlOpener>>,
+    pub secrets: SecretLookup,
 }
 
 impl Executor {
@@ -165,7 +181,18 @@ impl Executor {
             Ok(v) => (Some(v), None),
             Err(e) => (None, Some(e)),
         };
+        let availability = Availability {
+            claude: p.claude.is_some(),
+            web_search: (p.secrets)(Provider::OpenAi).is_some(),
+            open_url: p.opener.is_some(),
+            email: p.email.is_some() && (p.secrets)(Provider::Email).is_some(),
+        };
         Self {
+            availability,
+            web: p.web,
+            email: p.email,
+            opener: p.opener,
+            secrets: p.secrets,
             vault,
             vault_error,
             claude: p.claude,
@@ -182,6 +209,10 @@ impl Executor {
         self.claude.is_some()
     }
 
+    pub fn availability(&self) -> Availability {
+        self.availability
+    }
+
     pub fn vault_status(&self) -> std::result::Result<String, JarvisError> {
         match (&self.vault, &self.vault_error) {
             (Some(v), _) => Ok(v.root().display().to_string()),
@@ -194,7 +225,7 @@ impl Executor {
     }
 
     pub fn catalog(&self) -> Vec<tools::ToolSpec> {
-        tools::catalog(self.has_claude())
+        tools::catalog(self.availability)
     }
 
     pub async fn invoke(&self, call: ToolCall) -> ToolOutcome {
@@ -240,11 +271,11 @@ impl Executor {
 
     async fn run(&self, call: &ToolCall) -> ToolOutcome {
         let start = Instant::now();
-        let args = match tools::parse_args(&call.name, &call.arguments, self.has_claude()) {
+        let args = match tools::parse_args(&call.name, &call.arguments, self.availability) {
             Ok(a) => a,
             Err(e) => return self.finish(call, start, Err(e), None),
         };
-        let risk = tools::spec(&call.name, self.has_claude())
+        let risk = tools::spec(&call.name, self.availability)
             .map(|s| s.risk)
             .expect("validada");
 
@@ -295,16 +326,24 @@ impl Executor {
         }
 
         let target = match &args {
-            ToolArgs::CreateNote { .. } | ToolArgs::AddTask { .. } => Some(()),
+            ToolArgs::CreateNote { .. } | ToolArgs::AddTask { .. } => Some(None),
+            // Para páginas abiertas se registra solo el dominio, no la URL completa.
+            ToolArgs::OpenUrl { url } => Some(
+                reqwest::Url::parse(url)
+                    .ok()
+                    .and_then(|u| u.host_str().map(str::to_string)),
+            ),
             _ => None,
         };
         let result = self.execute(args).await;
-        let target_path = target.and_then(|_| {
-            result
+        let target_path = match target {
+            Some(Some(host)) => result.as_ref().ok().map(|_| host),
+            Some(None) => result
                 .as_ref()
                 .ok()
-                .and_then(|v| v.get("path").and_then(Value::as_str).map(str::to_string))
-        });
+                .and_then(|v| v.get("path").and_then(Value::as_str).map(str::to_string)),
+            None => None,
+        };
         self.finish(call, start, result, target_path)
     }
 
@@ -312,6 +351,85 @@ impl Executor {
         let now = (self.clock)();
         let today = now.date_naive();
         match args {
+            ToolArgs::GetWeather { location, days } => {
+                let location = location
+                    .or_else(|| self.web.default_location().map(str::to_string))
+                    .ok_or_else(|| {
+                        JarvisError::invalid(
+                            "Falta la ciudad. Pregunta al usuario o configura JARVIS_WEATHER_LOCATION.",
+                        )
+                    })?;
+                let w = tokio::time::timeout(self.timeouts.tool, self.web.weather(&location, days))
+                    .await
+                    .map_err(|_| {
+                        JarvisError::new(
+                            ErrorCode::Timeout,
+                            "El servicio del tiempo tardó demasiado.",
+                        )
+                    })??;
+                Ok(serde_json::to_value(w).expect("serializable"))
+            }
+            ToolArgs::WebSearch { query } => {
+                let key = (self.secrets)(Provider::OpenAi);
+                let r = tokio::time::timeout(
+                    self.timeouts.delegate.min(Duration::from_secs(90)),
+                    self.web.search(key.as_ref(), &query),
+                )
+                .await
+                .map_err(|_| {
+                    JarvisError::new(ErrorCode::Timeout, "La búsqueda tardó demasiado.")
+                })??;
+                Ok(serde_json::to_value(r).expect("serializable"))
+            }
+            ToolArgs::FetchPage { url, max_chars } => {
+                let page = tokio::time::timeout(
+                    self.timeouts.tool.max(Duration::from_secs(30)),
+                    self.web.fetch_page(&url, max_chars),
+                )
+                .await
+                .map_err(|_| {
+                    JarvisError::new(ErrorCode::Timeout, "La página tardó demasiado en cargar.")
+                })??;
+                Ok(serde_json::to_value(page).expect("serializable"))
+            }
+            ToolArgs::OpenUrl { url } => {
+                let opener = self.opener.clone().ok_or_else(|| {
+                    JarvisError::new(
+                        ErrorCode::ToolUnavailable,
+                        "No se puede abrir el navegador desde aquí.",
+                    )
+                })?;
+                let u = url.clone();
+                tokio::task::spawn_blocking(move || opener.open(&u))
+                    .await
+                    .map_err(|_| JarvisError::internal("No se pudo abrir el navegador."))??;
+                // «verified» indica que el sistema aceptó abrir la página.
+                Ok(json!({"opened": url, "verified": true}))
+            }
+            ToolArgs::ListEmails {
+                unread_only,
+                query,
+                limit,
+            } => {
+                let email = self.email.clone().ok_or_else(|| {
+                    JarvisError::new(ErrorCode::ToolUnavailable, "El correo no está configurado.")
+                })?;
+                let pw = (self.secrets)(Provider::Email);
+                let list = email
+                    .list(pw.as_ref(), unread_only, query.as_deref(), limit)
+                    .await?;
+                Ok(json!({"emails": list, "notice": crate::web::UNTRUSTED_NOTICE}))
+            }
+            ToolArgs::ReadEmail { id, max_chars } => {
+                let email = self.email.clone().ok_or_else(|| {
+                    JarvisError::new(ErrorCode::ToolUnavailable, "El correo no está configurado.")
+                })?;
+                let pw = (self.secrets)(Provider::Email);
+                Ok(
+                    serde_json::to_value(email.read(pw.as_ref(), id, max_chars).await?)
+                        .expect("serializable"),
+                )
+            }
             ToolArgs::DelegateToClaude {
                 task,
                 context,

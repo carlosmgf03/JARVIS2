@@ -18,3 +18,7 @@ JARVIS_POLICY_WRITE = "confirm"
 JARVIS_POLICY_DELEGATE = "allow"
 JARVIS_SAVE_TRANSCRIPTS = false
 JARVIS_TRANSCRIPT_RETENTION_DAYS = 7
+
+# Internet y correo (opcional)
+JARVIS_WEATHER_LOCATION = "Madrid"
+# JARVIS_EMAIL_ADDRESS = "tu.correo@gmail.com"   # contraseña: `jarvis secrets set email`

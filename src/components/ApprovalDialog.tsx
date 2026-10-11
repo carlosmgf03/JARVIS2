@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { ApprovalRequest } from '../lib/types';
 
-const RISK_LABEL = { read: 'Lectura', write: 'Escritura en la Vault', delegate: 'Envío a proveedor externo' };
+const RISK_LABEL = {
+  read: 'Lectura',
+  write: 'Escritura en la Vault',
+  delegate: 'Envío a proveedor externo',
+  web: 'Consulta a Internet',
+  open_url: 'Abrir en el navegador',
+  email: 'Lectura de correo',
+};
 
 interface Props {
   requests: ApprovalRequest[];

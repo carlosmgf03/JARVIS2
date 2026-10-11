@@ -177,3 +177,9 @@ button.secondary { background: transparent; border: 1px solid var(--line-strong)
   .ctl { min-width: 64px; padding: 8px 10px; }
   .ctl.volume input { width: 80px; }
 }
+.caps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; }
+.caps li::before { content: '●'; margin-right: 8px; font-size: 0.6rem; vertical-align: middle; }
+.caps .on { color: var(--text); }
+.caps .on::before { color: var(--ok); }
+.caps .off { color: var(--dim); }
+.caps .off::before { color: var(--dim); }

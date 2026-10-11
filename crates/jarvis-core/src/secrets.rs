@@ -43,6 +43,8 @@ impl fmt::Debug for Secret {
 pub enum Provider {
     OpenAi,
     Anthropic,
+    /// Contraseña de aplicación del correo (IMAP).
+    Email,
 }
 
 impl Provider {
@@ -50,6 +52,7 @@ impl Provider {
         match self {
             Provider::OpenAi => "OPENAI_API_KEY",
             Provider::Anthropic => "ANTHROPIC_API_KEY",
+            Provider::Email => "JARVIS_EMAIL_PASSWORD",
         }
     }
 
@@ -57,6 +60,7 @@ impl Provider {
         match self {
             Provider::OpenAi => "openai",
             Provider::Anthropic => "anthropic",
+            Provider::Email => "email",
         }
     }
 
@@ -64,6 +68,7 @@ impl Provider {
         match name.to_ascii_lowercase().as_str() {
             "openai" => Some(Provider::OpenAi),
             "anthropic" | "claude" => Some(Provider::Anthropic),
+            "email" | "correo" | "mail" => Some(Provider::Email),
             _ => None,
         }
     }

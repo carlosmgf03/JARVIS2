@@ -114,10 +114,15 @@ impl TextAgent {
         user.push_str(message);
         messages.push(json!({"role": "user", "content": user}));
 
-        let tool_defs: Vec<Value> = tools::catalog(false)
-            .into_iter()
-            .map(|t| json!({"name": t.name, "description": t.description, "input_schema": t.parameters}))
-            .collect();
+        let tool_defs: Vec<Value> = tools::catalog(tools::Availability {
+            claude: false,
+            ..self.executor.availability()
+        })
+        .into_iter()
+        .map(
+            |t| json!({"name": t.name, "description": t.description, "input_schema": t.parameters}),
+        )
+        .collect();
         let system = format!(
             "{}\nFecha y hora local: {}.",
             crate::persona::TEXT_INSTRUCTIONS,
@@ -260,6 +265,25 @@ impl TextAgent {
                 Some(call(tools::LIST_TASKS, a))
             }
             "/proyectos" => Some(call(tools::LIST_PROJECTS, json!({}))),
+            "/clima" | "/tiempo" => Some(call(
+                tools::GET_WEATHER,
+                if rest.is_empty() {
+                    json!({"days": 3})
+                } else {
+                    json!({"location": rest, "days": 3})
+                },
+            )),
+            "/web" => Some(call(tools::WEB_SEARCH, json!({"query": rest}))),
+            "/pagina" | "/página" => Some(call(tools::FETCH_PAGE, json!({"url": rest}))),
+            "/abrir" => Some(call(tools::OPEN_URL, json!({"url": rest}))),
+            "/correos" => Some(call(
+                tools::LIST_EMAILS,
+                json!({"unread_only": rest.eq_ignore_ascii_case("no leídos") || rest.eq_ignore_ascii_case("no leidos") || rest.eq_ignore_ascii_case("nuevos")}),
+            )),
+            "/correo" => match rest.parse::<i64>() {
+                Ok(id) => Some(call(tools::READ_EMAIL, json!({"id": id}))),
+                Err(_) => Some(call(tools::READ_EMAIL, json!({"id": rest}))),
+            },
             "/resumen" => Some(call(
                 tools::DAILY_SUMMARY,
                 if rest.is_empty() {
@@ -316,7 +340,13 @@ pub const COMMAND_HELP: &str = "Comandos disponibles:\n\
 /proyectos — listar proyectos\n\
 /resumen [AAAA-MM-DD] — resumen del día\n\
 /nota <título> | <contenido> — crear una nota (pide confirmación)\n\
-/tarea <texto> [@AAAA-MM-DD] — añadir una tarea (pide confirmación)";
+/tarea <texto> [@AAAA-MM-DD] — añadir una tarea (pide confirmación)\n\
+/clima [ciudad] — tiempo actual y previsión\n\
+/web <consulta> — buscar en Internet\n\
+/pagina <dirección> — leer el texto de una página\n\
+/abrir <dirección> — abrir una página en el navegador (pide confirmación)\n\
+/correos [nuevos] — últimos correos de la bandeja de entrada\n\
+/correo <id> — leer un correo";
 
 fn split_pipe(s: &str) -> (&str, Option<&str>) {
     match s.split_once('|') {
@@ -428,6 +458,79 @@ pub fn format_outcome(o: &ToolOutcome) -> String {
             s(&d, "path"),
             d["line"],
             s(&d, "text")
+        ),
+        tools::GET_WEATHER => {
+            let n = &d["now"];
+            let mut out = format!(
+                "{}: {} °C ({}), sensación {} °C, humedad {} %, viento {} km/h",
+                s(&d, "location"),
+                n["temperature_c"],
+                s(n, "description"),
+                n["feels_like_c"],
+                n["humidity_pct"],
+                n["wind_kmh"]
+            );
+            for day in d["days"].as_array().into_iter().flatten() {
+                out.push_str(&format!(
+                    "\n• {}: {}, {}–{} °C, lluvia {} %",
+                    s(day, "date"),
+                    s(day, "description"),
+                    day["min_c"],
+                    day["max_c"],
+                    day["rain_probability_pct"]
+                ));
+            }
+            out.push_str("\nFuente: Open-Meteo");
+            out
+        }
+        tools::WEB_SEARCH => {
+            let mut out = s(&d, "answer");
+            for src in d["sources"].as_array().into_iter().flatten() {
+                out.push_str(&format!("\n• {} — {}", s(src, "title"), s(src, "url")));
+            }
+            out
+        }
+        tools::FETCH_PAGE => format!(
+            "{} ({}){}\n\n{}",
+            d["title"].as_str().unwrap_or("Sin título"),
+            s(&d, "url"),
+            if d["truncated"].as_bool() == Some(true) {
+                " — extracto"
+            } else {
+                ""
+            },
+            s(&d, "content")
+        ),
+        tools::OPEN_URL => format!("Abierta en el navegador: {}", s(&d, "opened")),
+        tools::LIST_EMAILS => {
+            let items = d["emails"].as_array().cloned().unwrap_or_default();
+            if items.is_empty() {
+                return "No hay correos que coincidan.".into();
+            }
+            items
+                .iter()
+                .map(|m| {
+                    format!(
+                        "{} [{}] {} — {}",
+                        if m["unread"].as_bool() == Some(true) {
+                            "●"
+                        } else {
+                            "○"
+                        },
+                        m["id"],
+                        s(m, "from"),
+                        s(m, "subject")
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+        }
+        tools::READ_EMAIL => format!(
+            "De: {}\nAsunto: {}\nFecha: {}\n\n{}",
+            s(&d, "from"),
+            s(&d, "subject"),
+            s(&d, "date"),
+            s(&d, "body")
         ),
         _ => serde_json::to_string_pretty(&d).unwrap_or_default(),
     }

@@ -37,7 +37,7 @@ export interface JarvisError {
   retryable: boolean;
 }
 
-export type RiskLevel = 'read' | 'write' | 'delegate';
+export type RiskLevel = 'read' | 'write' | 'delegate' | 'web' | 'open_url' | 'email';
 export type SecretSource = 'environment' | 'keychain' | 'missing';
 
 export interface ToolSpec {
@@ -56,9 +56,12 @@ export interface Status {
   voices: string[];
   transcription_enabled: boolean;
   text_provider: 'claude' | 'commands';
-  policy: { write: 'allow' | 'confirm' | 'deny'; delegate: 'allow' | 'confirm' | 'deny' };
+  policy: Record<'write' | 'delegate' | 'web' | 'open' | 'email', 'allow' | 'confirm' | 'deny'>;
   save_transcripts: boolean;
   transcript_retention_days: number;
+  web_search: boolean;
+  email: string | null;
+  weather_location: string | null;
   voice_available: boolean;
   limitations: string[];
 }
