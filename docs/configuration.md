@@ -83,7 +83,7 @@ Las tareas se leen con la sintaxis de casillas de Obsidian (`- [ ]`, `- [x]`) y 
 
 | Variable | Por defecto | Descripción |
 |---|---|---|
-| `JARVIS_WEATHER_LOCATION` | — | Ciudad predeterminada para el tiempo (p. ej. `Madrid` o `Bogotá, Colombia`). El tiempo usa **Open-Meteo**: gratis, sin cuenta ni clave. |
+| `JARVIS_WEATHER_LOCATION` | — | Ciudad predeterminada para el tiempo cuando no nombras ningún lugar (p. ej. `Madrid` o `Bogotá, Colombia`). Puedes pedir el tiempo o la hora de **cualquier** ciudad o país; si nombras un país se usa su capital. Usa **Open-Meteo**: gratis, sin cuenta ni clave. |
 | `OPENAI_SEARCH_MODEL` | `gpt-5.6-luna` | Modelo para `web_search` (API Responses con la herramienta `web_search`). Es el predeterminado de `@openai/agents-openai` 0.18.0. Usa la misma clave de OpenAI. |
 
 Leer páginas (`fetch_page`) y abrirlas en el navegador (`open_url`) no necesitan configuración.

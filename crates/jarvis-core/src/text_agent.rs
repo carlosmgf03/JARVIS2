@@ -273,6 +273,14 @@ impl TextAgent {
                     json!({"location": rest, "days": 3})
                 },
             )),
+            "/hora" => Some(call(
+                tools::GET_TIME,
+                if rest.is_empty() {
+                    json!({})
+                } else {
+                    json!({"location": rest})
+                },
+            )),
             "/web" => Some(call(tools::WEB_SEARCH, json!({"query": rest}))),
             "/pagina" | "/página" => Some(call(tools::FETCH_PAGE, json!({"url": rest}))),
             "/abrir" => Some(call(tools::OPEN_URL, json!({"url": rest}))),
@@ -341,7 +349,8 @@ pub const COMMAND_HELP: &str = "Comandos disponibles:\n\
 /resumen [AAAA-MM-DD] — resumen del día\n\
 /nota <título> | <contenido> — crear una nota (pide confirmación)\n\
 /tarea <texto> [@AAAA-MM-DD] — añadir una tarea (pide confirmación)\n\
-/clima [ciudad] — tiempo actual y previsión\n\
+/clima [ciudad o país] — tiempo actual y previsión\n\
+/hora [ciudad o país] — hora local en cualquier lugar\n\
 /web <consulta> — buscar en Internet\n\
 /pagina <dirección> — leer el texto de una página\n\
 /abrir <dirección> — abrir una página en el navegador (pide confirmación)\n\
@@ -483,6 +492,18 @@ pub fn format_outcome(o: &ToolOutcome) -> String {
             out.push_str("\nFuente: Open-Meteo");
             out
         }
+        tools::GET_TIME => format!(
+            "{}: {} — {} (UTC{}){}",
+            s(&d, "location"),
+            s(&d, "time"),
+            s(&d, "date"),
+            s(&d, "utc_offset"),
+            if d["multiple_timezones"].as_bool() == Some(true) {
+                "\nEste país tiene varias zonas horarias; es la hora de la capital."
+            } else {
+                ""
+            }
+        ),
         tools::WEB_SEARCH => {
             let mut out = s(&d, "answer");
             for src in d["sources"].as_array().into_iter().flatten() {

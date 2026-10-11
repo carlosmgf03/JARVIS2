@@ -79,7 +79,7 @@ Páginas web, resultados de búsqueda y correos pueden contener instrucciones ma
 | Transcripción activada (por defecto) | El audio de entrada se transcribe en OpenAI con `OPENAI_REALTIME_TRANSCRIPTION_MODEL` | OpenAI |
 | `delegate_to_claude` | Tarea, contexto mínimo y fragmentos de hasta 3 notas | Anthropic |
 | Interfaz de texto con Claude | Mensajes, historial compacto y resultados de herramientas | Anthropic |
-| `get_weather` | Nombre de la ciudad y sus coordenadas | Open-Meteo |
+| `get_weather` / `get_time` | Nombre del lugar y sus coordenadas (la hora se calcula en el equipo; con una zona IANA directa no sale nada) | Open-Meteo |
 | `web_search` | La consulta de búsqueda | OpenAI (que busca en Internet) |
 | `fetch_page` | Petición HTTP a la página indicada (como un navegador) | El sitio web |
 | `open_url` | Nada desde JARVIS: la abre tu navegador | El sitio web |

@@ -34,6 +34,7 @@ pub const ADD_TASK: &str = "add_task";
 pub const DAILY_SUMMARY: &str = "daily_summary";
 pub const DELEGATE_TO_CLAUDE: &str = "delegate_to_claude";
 pub const GET_WEATHER: &str = "get_weather";
+pub const GET_TIME: &str = "get_time";
 pub const WEB_SEARCH: &str = "web_search";
 pub const FETCH_PAGE: &str = "fetch_page";
 pub const OPEN_URL: &str = "open_url";
@@ -167,12 +168,24 @@ pub fn catalog(av: Availability) -> Vec<ToolSpec> {
         },
         ToolSpec {
             name: GET_WEATHER,
-            description: "Tiempo actual y previsión (hasta 7 días) de una ciudad. Si el usuario no indica ciudad, omite 'location' para usar la predeterminada.",
+            description: "Tiempo actual y previsión (hasta 7 días) de cualquier ciudad o país del mundo. Pasa SIEMPRE en 'location' el lugar que nombre el usuario (si nombra un país se usa su capital). Omite 'location' solo si no menciona ningún lugar, para usar la ciudad predeterminada.",
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "location": {"type": "string", "minLength": 1, "maxLength": 100, "description": "Ciudad, p. ej. 'Madrid' o 'Bogotá, Colombia'."},
                     "days": {"type": "integer", "minimum": 1, "maximum": 7, "description": "Días de previsión (por defecto 1)."}
+                },
+                "additionalProperties": false
+            }),
+            risk: RiskLevel::Web,
+        },
+        ToolSpec {
+            name: GET_TIME,
+            description: "Hora y fecha actuales en cualquier ciudad o país del mundo (si nombra un país se usa la hora de su capital). Sin 'location', la hora de este equipo. Úsala siempre que pregunten la hora: la de tus instrucciones puede estar desfasada.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "location": {"type": "string", "minLength": 1, "maxLength": 100, "description": "Ciudad, país o zona horaria IANA (p. ej. 'Tokio', 'México', 'America/Bogota')."}
                 },
                 "additionalProperties": false
             }),
@@ -284,6 +297,9 @@ pub enum ToolArgs {
     GetWeather {
         location: Option<String>,
         days: usize,
+    },
+    GetTime {
+        location: Option<String>,
     },
     WebSearch {
         query: String,
@@ -423,6 +439,12 @@ struct TaskRaw {
 struct WeatherRaw {
     location: Option<String>,
     days: Option<i64>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TimeRaw {
+    location: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -587,6 +609,12 @@ pub fn parse_args(name: &str, raw: &Value, av: Availability) -> Result<ToolArgs>
                 days: int_field("days", r.days, 1, 7, 1)?,
             }
         }
+        GET_TIME => {
+            let r: TimeRaw = de(value)?;
+            ToolArgs::GetTime {
+                location: opt_text("location", r.location, 100)?,
+            }
+        }
         WEB_SEARCH => {
             let r: QueryRaw = de(value)?;
             ToolArgs::WebSearch {
@@ -666,6 +694,10 @@ impl ToolArgs {
             ToolArgs::GetWeather { location, .. } => match location {
                 Some(l) => format!("Consultar el tiempo en {l}"),
                 None => "Consultar el tiempo".into(),
+            },
+            ToolArgs::GetTime { location } => match location {
+                Some(l) => format!("Consultar la hora en {l}"),
+                None => "Consultar la hora".into(),
             },
             ToolArgs::WebSearch { query } => format!("Buscar en Internet «{query}»"),
             ToolArgs::FetchPage { url, .. } => format!("Leer la página {url}"),

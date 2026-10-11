@@ -277,39 +277,64 @@ impl WebClient {
 
     // ------------------------------------------------------------ tiempo
 
-    pub async fn weather(&self, location: &str, days: usize) -> Result<Weather> {
+    /// Busca una ciudad o un país. Si es un país, devuelve su capital.
+    pub async fn geocode(&self, location: &str) -> Result<crate::places::Place> {
+        use crate::places::{capital, is_country, place_from};
+        let url = format!(
+            "{}/search",
+            self.cfg.geocoding_base_url.trim_end_matches('/')
+        );
         let geo: Value = self
             .get_json(
-                &format!(
-                    "{}/search",
-                    self.cfg.geocoding_base_url.trim_end_matches('/')
-                ),
+                &url,
                 &[
                     ("name", location),
-                    ("count", "1"),
+                    ("count", "5"),
                     ("language", "es"),
                     ("format", "json"),
                 ],
                 "Open-Meteo",
             )
             .await?;
-        let place = geo.get("results").and_then(|r| r.get(0)).ok_or_else(|| {
+        let first = geo.get("results").and_then(|r| r.get(0)).ok_or_else(|| {
             JarvisError::new(
                 ErrorCode::NotFound,
                 format!("No encontré la ubicación «{location}»."),
             )
         })?;
-        let lat = place["latitude"].as_f64().unwrap_or_default();
-        let lon = place["longitude"].as_f64().unwrap_or_default();
-        let name = [
-            place["name"].as_str(),
-            place["admin1"].as_str(),
-            place["country"].as_str(),
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .join(", ");
+        if is_country(first) {
+            if let Some(cc) = first["country_code"].as_str() {
+                if let Some(cap) = capital(cc) {
+                    let found: Value = self
+                        .get_json(
+                            &url,
+                            &[
+                                ("name", cap),
+                                ("count", "1"),
+                                ("language", "es"),
+                                ("format", "json"),
+                                ("countryCode", cc),
+                            ],
+                            "Open-Meteo",
+                        )
+                        .await?;
+                    if let Some(c) = found.get("results").and_then(|r| r.get(0)) {
+                        return Ok(place_from(c, true));
+                    }
+                }
+            }
+        }
+        Ok(place_from(first, false))
+    }
+
+    pub async fn weather(&self, location: &str, days: usize) -> Result<Weather> {
+        let place = self.geocode(location).await?;
+        let (lat, lon) = (place.latitude, place.longitude);
+        let name = if place.capital_of_country {
+            format!("{} (capital)", place.name)
+        } else {
+            place.name.clone()
+        };
         let days_s = days.clamp(1, 7).to_string();
         let (lat_s, lon_s) = (lat.to_string(), lon.to_string());
         let f: Value = self

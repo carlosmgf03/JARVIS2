@@ -369,6 +369,45 @@ impl Executor {
                     })??;
                 Ok(serde_json::to_value(w).expect("serializable"))
             }
+            ToolArgs::GetTime { location } => {
+                use crate::places::{has_multiple_timezones, local_time, machine_time};
+                let utc = now.with_timezone(&chrono::Utc);
+                let t = match location {
+                    None => machine_time(now),
+                    // Zona IANA directa (p. ej. «Europe/Madrid»): sin consultar Internet.
+                    Some(l) if l.parse::<chrono_tz::Tz>().is_ok() => {
+                        local_time(&l, &l, utc, false)?
+                    }
+                    Some(l) => {
+                        let place = tokio::time::timeout(self.timeouts.tool, self.web.geocode(&l))
+                            .await
+                            .map_err(|_| {
+                                JarvisError::new(
+                                    ErrorCode::Timeout,
+                                    "La búsqueda del lugar tardó demasiado.",
+                                )
+                            })??;
+                        let tz = place.timezone.clone().ok_or_else(|| {
+                            JarvisError::new(
+                                ErrorCode::NotFound,
+                                format!("No sé en qué zona horaria está «{l}»."),
+                            )
+                        })?;
+                        let multiple = place.capital_of_country
+                            && place
+                                .country_code
+                                .as_deref()
+                                .is_some_and(has_multiple_timezones);
+                        let name = if place.capital_of_country {
+                            format!("{} (capital)", place.name)
+                        } else {
+                            place.name
+                        };
+                        local_time(&name, &tz, utc, multiple)?
+                    }
+                };
+                Ok(serde_json::to_value(t).expect("serializable"))
+            }
             ToolArgs::WebSearch { query } => {
                 let key = (self.secrets)(Provider::OpenAi);
                 let r = tokio::time::timeout(

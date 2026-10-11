@@ -12,6 +12,7 @@ pub mod error;
 pub mod executor;
 pub mod http;
 pub mod persona;
+pub mod places;
 pub mod policy;
 pub mod realtime;
 pub mod secrets;

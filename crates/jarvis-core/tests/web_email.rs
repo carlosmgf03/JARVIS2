@@ -140,6 +140,118 @@ async fn weather_uses_default_city_and_spanish_descriptions() {
     );
 }
 
+/// Geocodificador simulado: «Japón» es un país (código JP) y su capital,
+/// Tokio, se busca con el filtro de país.
+async fn mock_geocoder() -> MockServer {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .and(query_param("name", "Japón"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"results": [
+            {"name": "Japón", "feature_code": "PCLI", "country_code": "JP", "country": "Japón",
+             "latitude": 35.68, "longitude": 139.76, "timezone": "Asia/Tokyo"}
+        ]})))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .and(query_param("name", "Tokyo"))
+        .and(query_param("countryCode", "JP"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"results": [
+            {"name": "Tokio", "feature_code": "PPLC", "country_code": "JP", "admin1": "Tokio", "country": "Japón",
+             "latitude": 35.69, "longitude": 139.69, "timezone": "Asia/Tokyo"}
+        ]})))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .and(query_param("name", "Estados Unidos"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"results": [
+            {"name": "Estados Unidos", "feature_code": "PCLI", "country_code": "US", "country": "Estados Unidos",
+             "latitude": 39.76, "longitude": -98.5, "timezone": "America/Chicago"}
+        ]})))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/search"))
+        .and(query_param("name", "Washington"))
+        .and(query_param("countryCode", "US"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"results": [
+            {"name": "Washington", "feature_code": "PPLC", "country_code": "US", "admin1": "Washington, D.C.", "country": "Estados Unidos",
+             "latitude": 38.89, "longitude": -77.03, "timezone": "America/New_York"}
+        ]})))
+        .mount(&server)
+        .await;
+    server
+}
+
+#[tokio::test]
+async fn time_anywhere_uses_capital_for_countries() {
+    let geo = mock_geocoder().await;
+    let h = harness(&[("JARVIS_GEOCODING_BASE_URL", &geo.uri())], &[], None);
+
+    let out = run(&h, "t1", "get_time", json!({"location": "Japón"})).await;
+    assert_eq!(out.status, OutcomeStatus::Ok, "{out:?}");
+    let d = out.data.unwrap();
+    assert_eq!(d["location"], "Tokio, Japón (capital)");
+    assert_eq!(d["timezone"], "Asia/Tokyo");
+    assert_eq!(d["utc_offset"], "+09:00");
+    assert_eq!(d["multiple_timezones"], false);
+
+    let us = run(&h, "t2", "get_time", json!({"location": "Estados Unidos"}))
+        .await
+        .data
+        .unwrap();
+    assert_eq!(
+        us["timezone"], "America/New_York",
+        "hora de la capital, no del centro del país"
+    );
+    assert_eq!(us["multiple_timezones"], true);
+
+    // Zona IANA directa: sin consultar Internet (el servidor no la conoce).
+    let direct = run(&h, "t3", "get_time", json!({"location": "America/Bogota"}))
+        .await
+        .data
+        .unwrap();
+    assert_eq!(direct["utc_offset"], "-05:00");
+
+    let here = run(&h, "t4", "get_time", json!({})).await;
+    assert_eq!(here.status, OutcomeStatus::Ok);
+
+    let r = h.jarvis.text.send("/hora Japón", None).await.unwrap();
+    assert!(
+        r.reply.contains("Tokio") && r.reply.contains("UTC+09:00"),
+        "{}",
+        r.reply
+    );
+}
+
+#[tokio::test]
+async fn weather_for_a_country_uses_its_capital_not_the_default() {
+    let geo = mock_geocoder().await;
+    Mock::given(method("GET"))
+        .and(path("/forecast"))
+        .and(query_param("latitude", "35.69"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "current": {"temperature_2m": 18.0, "weather_code": 3},
+            "daily": {"time": ["2026-10-12"], "weather_code": [3], "temperature_2m_max": [21.0], "temperature_2m_min": [14.0], "precipitation_probability_max": [10]}
+        })))
+        .mount(&geo)
+        .await;
+    let h = harness(
+        &[
+            ("JARVIS_WEATHER_LOCATION", "Sevilla"),
+            ("JARVIS_GEOCODING_BASE_URL", &geo.uri()),
+            ("JARVIS_WEATHER_BASE_URL", &geo.uri()),
+        ],
+        &[],
+        None,
+    );
+    let out = run(&h, "w3", "get_weather", json!({"location": "Japón"})).await;
+    assert_eq!(out.status, OutcomeStatus::Ok, "{out:?}");
+    assert_eq!(out.data.unwrap()["location"], "Tokio, Japón (capital)");
+}
+
 #[tokio::test]
 async fn weather_without_city_asks_for_it() {
     let h = harness(&[], &[], None);

@@ -40,7 +40,7 @@
 | **Realtime** (OpenAI) | Escucha, detecta turnos, interpreta la petición, decide herramientas y responde con voz. Mantiene el estado de la sesión. | No es memoria persistente. No ejecuta herramientas. |
 | **Capa de orquestación** (`jarvis-core`) | Credenciales, secretos efímeros, catálogo de herramientas, validación, política de permisos, confirmaciones, ejecución, verificación, auditoría, retención. | No conversa por voz. |
 | **Obsidian** (Vault) | Memoria personal y conocimiento persistente. | — |
-| **Internet** (`web.rs`) | Tiempo (Open-Meteo), búsqueda (OpenAI Responses + `web_search`), lectura segura de páginas y apertura en el navegador. | No envía datos personales salvo la consulta o la URL. |
+| **Internet** (`web.rs`, `places.rs`) | Hora de cualquier lugar (zonas IANA calculadas en el equipo), tiempo (Open-Meteo) de cualquier ciudad o país (un país se resuelve a su capital), búsqueda (OpenAI Responses + `web_search`), lectura segura de páginas y apertura en el navegador. | No envía datos personales salvo la consulta o la URL. |
 | **Correo** (`email.rs`) | Listar y leer correo por IMAP, solo lectura. | No envía, mueve, marca ni borra. |
 | **Claude** (opcional) | Especialista para razonamiento extenso, análisis documental o programación (`delegate_to_claude`), y modelo de la interfaz de texto. | No comparte memoria ni historial con Realtime: el contexto se envía explícitamente y acotado. |
 | **Interfaz de texto** | Mismas herramientas, misma política y misma Vault. Claude si está configurado; si no, modo comandos sin credenciales. | — |
@@ -105,7 +105,7 @@ Pantalla única de estilo HUD (oscura, dorada) centrada en un **reactor** animad
 |---|---|---|---|
 | `search_notes`, `read_note`, `list_tasks`, `list_projects`, `daily_summary` | `read` | directo | siempre (requiere Vault) |
 | `create_note`, `add_task` | `write` | confirmación | siempre (requiere Vault) |
-| `get_weather`, `fetch_page` | `web` | directo | siempre |
+| `get_time`, `get_weather`, `fetch_page` | `web` | directo | siempre |
 | `web_search` | `web` | directo | hay clave de OpenAI |
 | `open_url` | `open_url` | confirmación | siempre en la app y la CLI |
 | `list_emails`, `read_email` | `email` | directo | correo configurado (dirección + contraseña de aplicación) |
