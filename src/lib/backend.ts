@@ -136,6 +136,7 @@ class UnavailableBackend implements Backend {
         web_search: false,
         email: null,
         weather_location: null,
+        user_name: null,
         traffic: false,
         traffic_city: 'Bogotá',
         flights: false,

@@ -44,6 +44,7 @@ pub struct TextAgent {
     executor: Arc<Executor>,
     claude: Option<Arc<ClaudeClient>>,
     history: Mutex<Vec<(String, String)>>,
+    user_name: Option<String>,
 }
 
 impl TextAgent {
@@ -60,7 +61,14 @@ impl TextAgent {
             executor,
             claude,
             history: Mutex::new(Vec::new()),
+            user_name: None,
         }
+    }
+
+    /// Nombre del usuario para el trato personal (ver `persona::user_section`).
+    pub fn with_user_name(mut self, name: Option<String>) -> Self {
+        self.user_name = name;
+        self
     }
 
     pub fn provider(&self) -> &'static str {
@@ -124,8 +132,9 @@ impl TextAgent {
         )
         .collect();
         let system = format!(
-            "{}\nFecha y hora local: {}.",
+            "{}{}\nFecha y hora local: {}.",
             crate::persona::TEXT_INSTRUCTIONS,
+            crate::persona::user_section(self.user_name.as_deref()),
             Local::now().format("%A %d/%m/%Y %H:%M")
         );
 

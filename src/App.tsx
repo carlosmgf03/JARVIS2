@@ -240,7 +240,7 @@ export default function App() {
         <ol className="hud-transcript" aria-label="Transcripción">
           {recent.map((t, i) => (
             <li key={`${i}-${t.text.slice(0, 12)}`} className={t.role} style={{ opacity: 0.45 + (0.55 * (i + 1)) / recent.length }}>
-              <span className="who">{t.role === 'user' ? 'Usuario' : 'JARVIS'}</span>
+              <span className="who">{t.role === 'user' ? (status?.user_name ?? 'Usuario') : 'JARVIS'}</span>
               <p>{t.text}</p>
             </li>
           ))}

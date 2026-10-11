@@ -62,6 +62,7 @@ export interface Status {
   web_search: boolean;
   email: string | null;
   weather_location: string | null;
+  user_name: string | null;
   traffic: boolean;
   traffic_city: string;
   flights: boolean;

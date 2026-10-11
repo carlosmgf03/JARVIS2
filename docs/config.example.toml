@@ -3,6 +3,7 @@
 # o indica su ruta con JARVIS_CONFIG_FILE. Las variables de entorno tienen prioridad.
 # Las claves API NO van aquí: usa `jarvis secrets set openai`.
 
+JARVIS_USER_NAME = "Ana"
 JARVIS_VAULT_PATH = "/Users/yo/Obsidian/MiVault"
 JARVIS_NOTES_FOLDER = "JARVIS"
 JARVIS_TASKS_FILE = "JARVIS/Tareas.md"

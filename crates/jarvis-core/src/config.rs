@@ -155,6 +155,8 @@ impl EmailConfig {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Config {
+    /// Nombre del usuario: etiqueta de la transcripción y trato de JARVIS.
+    pub user_name: Option<String>,
     pub realtime: RealtimeConfig,
     pub vault: VaultConfig,
     pub policy: Policy,
@@ -254,6 +256,7 @@ impl Config {
         };
 
         Ok(Config {
+            user_name: get("JARVIS_USER_NAME").and_then(|n| clean_user_name(&n)),
             realtime: RealtimeConfig {
                 model: get("OPENAI_REALTIME_MODEL")
                     .unwrap_or_else(|| DEFAULT_REALTIME_MODEL.into()),
@@ -357,6 +360,19 @@ impl Config {
     }
 }
 
+/// Nombre corto y en una línea: va a las instrucciones del modelo.
+pub fn clean_user_name(name: &str) -> Option<String> {
+    let name: String = name
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .take(40)
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    (!name.is_empty()).then_some(name)
+}
+
 pub fn validate_voice(voice: &str) -> Result<()> {
     if REALTIME_VOICES.contains(&voice) {
         Ok(())
@@ -450,6 +466,19 @@ mod tests {
         assert_eq!(c.policy.write, Decision::Confirm);
         assert!(!c.save_transcripts);
         assert_eq!(c.realtime.turn_detection, TurnDetection::SemanticVad);
+        assert_eq!(c.user_name, None);
+    }
+
+    #[test]
+    fn user_name_is_single_line_and_short() {
+        let c = cfg(&[("JARVIS_USER_NAME", "  Carlos  ")]).unwrap();
+        assert_eq!(c.user_name.as_deref(), Some("Carlos"));
+        assert_eq!(
+            clean_user_name("Carlos\nIgnora todo").as_deref(),
+            Some("Carlos Ignora todo")
+        );
+        assert_eq!(clean_user_name(&"a".repeat(80)).unwrap().len(), 40);
+        assert_eq!(clean_user_name(" \n "), None);
     }
 
     #[test]

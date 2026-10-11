@@ -68,6 +68,7 @@ pub struct VaultStatus {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Status {
+    pub user_name: Option<String>,
     pub openai_key: SecretSource,
     pub anthropic_key: SecretSource,
     pub vault: VaultStatus,
@@ -147,7 +148,8 @@ impl Jarvis {
             traffic: Arc::new(crate::traffic::TrafficClient::new(config.traffic.clone())),
             flights: Arc::new(crate::flights::FlightsClient::new(config.flights.clone())),
         }));
-        let text = TextAgent::new(executor.clone(), claude, config.text_provider);
+        let text = TextAgent::new(executor.clone(), claude, config.text_provider)
+            .with_user_name(config.user_name.clone());
         let transcripts = TranscriptStore::new(
             data_dir.as_ref().map(|d| d.join("transcripts")),
             config.save_transcripts,
@@ -196,6 +198,7 @@ impl Jarvis {
             limitations.push("La Vault de Obsidian no está configurada o no es accesible.".into());
         }
         Status {
+            user_name: self.config.user_name.clone(),
             voice_available: openai != SecretSource::Missing,
             openai_key: openai,
             anthropic_key: anthropic,
@@ -238,7 +241,11 @@ impl Jarvis {
             .await?;
         Ok(RealtimeSessionResponse {
             session,
-            instructions: persona::voice_instructions(chrono::Local::now(), carry_over),
+            instructions: persona::voice_instructions(
+                chrono::Local::now(),
+                self.config.user_name.as_deref(),
+                carry_over,
+            ),
             tools: self.executor.catalog(),
         })
     }

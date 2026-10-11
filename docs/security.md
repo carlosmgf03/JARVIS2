@@ -76,10 +76,10 @@ Páginas web, resultados de búsqueda y correos pueden contener instrucciones ma
 
 | Cuándo | Qué | A quién |
 |---|---|---|
-| Sesión de voz activa | Audio del micrófono; texto escrito durante la sesión; resultados de herramientas (fragmentos de notas, tareas) | OpenAI |
+| Sesión de voz activa | Audio del micrófono; texto escrito durante la sesión; resultados de herramientas (fragmentos de notas, tareas); tu nombre si configuraste `JARVIS_USER_NAME` (va en las instrucciones) | OpenAI |
 | Transcripción activada (por defecto) | El audio de entrada se transcribe en OpenAI con `OPENAI_REALTIME_TRANSCRIPTION_MODEL` | OpenAI |
 | `delegate_to_claude` | Tarea, contexto mínimo y fragmentos de hasta 3 notas | Anthropic |
-| Interfaz de texto con Claude | Mensajes, historial compacto y resultados de herramientas | Anthropic |
+| Interfaz de texto con Claude | Mensajes, historial compacto, resultados de herramientas y tu nombre si está configurado | Anthropic |
 | `get_weather` / `get_time` | Nombre del lugar y sus coordenadas (la hora se calcula en el equipo; con una zona IANA directa no sale nada) | Open-Meteo |
 | `web_search` | La consulta de búsqueda | OpenAI (que busca en Internet) |
 | `get_traffic` | Direcciones de origen y destino (o los alias casa/trabajo ya resueltos) | TomTom |

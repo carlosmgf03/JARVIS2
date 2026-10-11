@@ -33,6 +33,7 @@ if [[ ! -f "$CONFIG" ]]; then
   echo "== Configuración inicial de JARVIS =="
   echo "(Pulsa Enter para dejar un campo vacío. Podrás cambiarlo en: $CONFIG)"
   echo
+  read -r -p "0) ¿Cómo te llamas? (JARVIS te llamará así): " USER_NAME
   read -r -p "1) Arrastra aquí la carpeta de tus notas de Obsidian y pulsa Enter: " VAULT
   VAULT="$(clean_path "$VAULT")"
   read -r -p "2) Ciudad para el tiempo [Bogotá]: " CITY
@@ -41,6 +42,7 @@ if [[ ! -f "$CONFIG" ]]; then
   read -r -p "5) Tu correo (solo si configuraste la contraseña de aplicación): " EMAIL
   {
     echo "# Configuración de JARVIS (sin claves: las claves van en el Llavero)."
+    [[ -n "$USER_NAME" ]] && echo "JARVIS_USER_NAME = $(toml "$USER_NAME")"
     [[ -n "$VAULT" ]] && echo "JARVIS_VAULT_PATH = $(toml "$VAULT")"
     echo "JARVIS_WEATHER_LOCATION = $(toml "${CITY:-Bogotá}")"
     [[ -n "$HOME_ADDR" ]] && echo "JARVIS_HOME_ADDRESS = $(toml "$HOME_ADDR")"

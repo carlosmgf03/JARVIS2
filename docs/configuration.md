@@ -42,6 +42,12 @@ Usa las mismas claves que las variables de entorno (ver `docs/config.example.tom
 
 ## Variables
 
+### General
+
+| Variable | Por defecto | Descripción |
+|---|---|---|
+| `JARVIS_USER_NAME` | — | Tu nombre (p. ej. `Carlos`). Sustituye a «Usuario» en la transcripción y JARVIS lo usa con moderación: al saludar, al despedirse y de vez en cuando. Una línea, máximo 40 caracteres. |
+
 ### Voz (OpenAI Realtime)
 
 | Variable | Por defecto | Descripción |
