@@ -93,6 +93,28 @@ pub struct WebConfig {
     pub allow_private_hosts: bool,
 }
 
+/// Tráfico en vivo (TomTom). Por defecto, Bogotá.
+#[derive(Debug, Clone, Serialize)]
+pub struct TrafficConfig {
+    pub city: String,
+    pub country: String,
+    pub center_lat: f64,
+    pub center_lon: f64,
+    /// Rectángulo de incidentes: `minLon,minLat,maxLon,maxLat`.
+    pub bbox: String,
+    pub home_address: Option<String>,
+    pub work_address: Option<String>,
+    pub tomtom_base_url: String,
+}
+
+/// Vuelos (Google Flights vía SerpApi).
+#[derive(Debug, Clone, Serialize)]
+pub struct FlightsConfig {
+    pub home_airport: String,
+    pub currency: String,
+    pub serpapi_base_url: String,
+}
+
 /// Lectura de correo por IMAP (solo lectura).
 #[derive(Debug, Clone, Serialize)]
 pub struct EmailConfig {
@@ -147,6 +169,8 @@ pub struct Config {
     pub anthropic_base_url: String,
     pub web: WebConfig,
     pub email: EmailConfig,
+    pub traffic: TrafficConfig,
+    pub flights: FlightsConfig,
 }
 
 impl Config {
@@ -303,6 +327,24 @@ impl Config {
                 search_model: get("OPENAI_SEARCH_MODEL")
                     .unwrap_or_else(|| DEFAULT_SEARCH_MODEL.into()),
                 allow_private_hosts: parse_bool(get("JARVIS_WEB_ALLOW_PRIVATE"), false),
+            },
+            traffic: TrafficConfig {
+                city: get("JARVIS_TRAFFIC_CITY").unwrap_or_else(|| "Bogotá".into()),
+                country: get("JARVIS_TRAFFIC_COUNTRY").unwrap_or_else(|| "CO".into()),
+                center_lat: parse_num(get("JARVIS_TRAFFIC_LAT"), 4.711, "JARVIS_TRAFFIC_LAT")?,
+                center_lon: parse_num(get("JARVIS_TRAFFIC_LON"), -74.0721, "JARVIS_TRAFFIC_LON")?,
+                bbox: get("JARVIS_TRAFFIC_BBOX")
+                    .unwrap_or_else(|| "-74.23,4.46,-73.99,4.84".into()),
+                home_address: get("JARVIS_HOME_ADDRESS"),
+                work_address: get("JARVIS_WORK_ADDRESS"),
+                tomtom_base_url: get("JARVIS_TOMTOM_BASE_URL")
+                    .unwrap_or_else(|| "https://api.tomtom.com".into()),
+            },
+            flights: FlightsConfig {
+                home_airport: get("JARVIS_HOME_AIRPORT").unwrap_or_else(|| "BOG".into()),
+                currency: get("JARVIS_CURRENCY").unwrap_or_else(|| "COP".into()),
+                serpapi_base_url: get("JARVIS_SERPAPI_BASE_URL")
+                    .unwrap_or_else(|| "https://serpapi.com".into()),
             },
             email: EmailConfig {
                 address: get("JARVIS_EMAIL_ADDRESS"),

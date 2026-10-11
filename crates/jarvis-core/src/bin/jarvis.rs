@@ -20,7 +20,7 @@ use jarvis_core::Jarvis;
 
 fn usage() -> ExitCode {
     eprintln!(
-        "Uso:\n  jarvis secrets set|delete openai|anthropic|email\n  jarvis secrets status\n  jarvis doctor\n  jarvis tool <nombre> '<json>'\n  jarvis text \"<mensaje>\""
+        "Uso:\n  jarvis secrets set|delete openai|anthropic|email|tomtom|serpapi\n  jarvis secrets status\n  jarvis doctor\n  jarvis tool <nombre> '<json>'\n  jarvis text \"<mensaje>\""
     );
     ExitCode::from(2)
 }
@@ -38,7 +38,13 @@ async fn main() -> ExitCode {
         ["secrets", "delete", p] => secrets_delete(p),
         ["secrets", "status"] => {
             let c = Credentials::system();
-            for p in [Provider::OpenAi, Provider::Anthropic, Provider::Email] {
+            for p in [
+                Provider::OpenAi,
+                Provider::Anthropic,
+                Provider::Email,
+                Provider::TomTom,
+                Provider::SerpApi,
+            ] {
                 println!("{:<10} {}", p.keychain_user(), describe(c.source(p)));
             }
             ExitCode::SUCCESS
@@ -141,6 +147,22 @@ async fn doctor() -> ExitCode {
             "disponible"
         } else {
             "no disponible (falta la clave de OpenAI)"
+        }
+    );
+    println!(
+        "Tráfico:           {}",
+        if s.traffic {
+            format!("disponible ({})", s.traffic_city)
+        } else {
+            "sin clave de TomTom (`jarvis secrets set tomtom`)".into()
+        }
+    );
+    println!(
+        "Vuelos:            {}",
+        if s.flights {
+            "disponible (Google Flights vía SerpApi)"
+        } else {
+            "sin clave de SerpApi (`jarvis secrets set serpapi`)"
         }
     );
     match (&s.email, &j.config.email.address) {

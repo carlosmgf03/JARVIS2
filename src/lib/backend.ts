@@ -136,6 +136,9 @@ class UnavailableBackend implements Backend {
         web_search: false,
         email: null,
         weather_location: null,
+        traffic: false,
+        traffic_city: 'Bogotá',
+        flights: false,
         voice_available: false,
         limitations: [
           'Se está ejecutando en un navegador sin la capa de orquestación (Tauri). No hay voz real ni acceso a la Vault.',

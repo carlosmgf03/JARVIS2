@@ -46,6 +46,7 @@ export default function App() {
   const [voice, setVoice] = usePref<string | null>('voice', null);
   const [halfDuplex, setHalfDuplex] = usePref('halfDuplex', false);
   const [showTranscript, setShowTranscript] = usePref('showTranscript', true);
+  const [autoStart, setAutoStart] = usePref('autoStart', false);
   // Últimos turnos escritos: se pasan como contexto al iniciar la voz.
   const [textHistory, setTextHistory] = useState<TranscriptEntry[]>([]);
 
@@ -105,6 +106,16 @@ export default function App() {
       halfDuplex,
       saveTranscript: Boolean(status?.save_transcripts),
     });
+
+  // «Empezar a escuchar al abrir»: una sola vez, cuando ya se conoce el estado.
+  const [autoStarted, setAutoStarted] = useState(false);
+  useEffect(() => {
+    if (autoStart && !autoStarted && voiceAvailable && state.phase === 'idle') {
+      setAutoStarted(true);
+      start();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, autoStarted, voiceAvailable]);
 
   let statusText = PHASE_LABEL[state.phase];
   if (state.awaitingApproval) statusText = 'Esperando tu confirmación';
@@ -279,6 +290,10 @@ export default function App() {
             <input type="checkbox" checked={showTranscript} onChange={(e) => setShowTranscript(e.target.checked)} />
             Mostrar la conversación en pantalla
           </label>
+          <label className="check" title="Al abrir JARVIS (por ejemplo con «Oye Siri, abre JARVIS») empieza a escuchar sin pulsar el botón.">
+            <input type="checkbox" checked={autoStart} onChange={(e) => setAutoStart(e.target.checked)} />
+            Empezar a escuchar al abrir JARVIS
+          </label>
           {status && (
             <p className="fine">
               Modelo {status.realtime_model}
@@ -295,6 +310,12 @@ export default function App() {
               <li className="on">Tiempo{status.weather_location ? ` · ciudad: ${status.weather_location}` : ' · sin ciudad predeterminada'}</li>
               <li className={status.web_search ? 'on' : 'off'}>Búsqueda en Internet{status.web_search ? '' : ' — falta la clave de OpenAI'}</li>
               <li className="on">Leer y abrir páginas web (abrir pide confirmación)</li>
+              <li className={status.traffic ? 'on' : 'off'}>
+                {status.traffic ? `Tráfico en vivo · ${status.traffic_city}` : `Tráfico en vivo — falta la clave de TomTom (usará noticias de ${status.traffic_city})`}
+              </li>
+              <li className={status.flights ? 'on' : 'off'}>
+                {status.flights ? 'Vuelos: precios y horarios (Google Flights)' : 'Vuelos — falta la clave de SerpApi (usará la búsqueda web)'}
+              </li>
               <li className={status.email ? 'on' : 'off'}>{status.email ? `Correo (solo lectura) · ${status.email}` : 'Correo — no configurado'}</li>
             </ul>
           </section>

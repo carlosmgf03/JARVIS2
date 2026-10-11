@@ -27,10 +27,12 @@ use crate::approvals::{ApprovalBroker, ApprovalOutcome, ApprovalRequest};
 use crate::audit::{AuditEntry, AuditLog};
 use crate::email::EmailClient;
 use crate::error::{ErrorCode, JarvisError, Result};
+use crate::flights::{FlightQuery, FlightsClient};
 use crate::policy::{Decision, Policy};
 use crate::secrets::{Provider, Secret};
 use crate::tools::Availability;
 use crate::tools::{self, ToolArgs};
+use crate::traffic::TrafficClient;
 use crate::vault::Vault;
 use crate::web::{UrlOpener, WebClient};
 
@@ -136,6 +138,8 @@ pub struct Executor {
     opener: Option<Arc<dyn UrlOpener>>,
     secrets: SecretLookup,
     availability: Availability,
+    traffic: Arc<TrafficClient>,
+    flights: Arc<FlightsClient>,
 }
 
 #[derive(Default)]
@@ -173,6 +177,8 @@ pub struct ExecutorParts {
     pub email: Option<Arc<EmailClient>>,
     pub opener: Option<Arc<dyn UrlOpener>>,
     pub secrets: SecretLookup,
+    pub traffic: Arc<TrafficClient>,
+    pub flights: Arc<FlightsClient>,
 }
 
 impl Executor {
@@ -186,9 +192,13 @@ impl Executor {
             web_search: (p.secrets)(Provider::OpenAi).is_some(),
             open_url: p.opener.is_some(),
             email: p.email.is_some() && (p.secrets)(Provider::Email).is_some(),
+            traffic: (p.secrets)(Provider::TomTom).is_some(),
+            flights: (p.secrets)(Provider::SerpApi).is_some(),
         };
         Self {
             availability,
+            traffic: p.traffic,
+            flights: p.flights,
             web: p.web,
             email: p.email,
             opener: p.opener,
@@ -368,6 +378,69 @@ impl Executor {
                         )
                     })??;
                 Ok(serde_json::to_value(w).expect("serializable"))
+            }
+            ToolArgs::GetTraffic {
+                origin,
+                destination,
+            } => {
+                let key = (self.secrets)(Provider::TomTom).ok_or_else(|| {
+                    JarvisError::new(
+                        ErrorCode::MissingApiKey,
+                        "Falta la clave de TomTom para el tráfico.",
+                    )
+                })?;
+                let r = tokio::time::timeout(
+                    self.timeouts.tool.max(Duration::from_secs(30)),
+                    self.traffic
+                        .report(&key, origin.as_deref(), destination.as_deref()),
+                )
+                .await
+                .map_err(|_| {
+                    JarvisError::new(
+                        ErrorCode::Timeout,
+                        "El servicio de tráfico tardó demasiado.",
+                    )
+                })??;
+                Ok(serde_json::to_value(r).expect("serializable"))
+            }
+            ToolArgs::SearchFlights {
+                origin,
+                destination,
+                date,
+                return_date,
+                flexible_days,
+                adults,
+                cabin,
+                nonstop,
+            } => {
+                if date < today {
+                    return Err(JarvisError::invalid("La fecha del vuelo ya pasó."));
+                }
+                let key = (self.secrets)(Provider::SerpApi).ok_or_else(|| {
+                    JarvisError::new(
+                        ErrorCode::MissingApiKey,
+                        "Falta la clave de SerpApi para buscar vuelos.",
+                    )
+                })?;
+                let q = FlightQuery {
+                    origin: origin.unwrap_or_else(|| self.flights.home_airport().to_string()),
+                    destination,
+                    date,
+                    return_date,
+                    flexible_days,
+                    adults,
+                    cabin: cabin.to_string(),
+                    nonstop,
+                };
+                let r = tokio::time::timeout(
+                    Duration::from_secs(90),
+                    self.flights.search(&key, &q, today),
+                )
+                .await
+                .map_err(|_| {
+                    JarvisError::new(ErrorCode::Timeout, "La búsqueda de vuelos tardó demasiado.")
+                })??;
+                Ok(serde_json::to_value(r).expect("serializable"))
             }
             ToolArgs::GetTime { location } => {
                 use crate::places::{has_multiple_timezones, local_time, machine_time};

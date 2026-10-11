@@ -3,7 +3,7 @@
 ## Automáticas
 
 ```bash
-cargo test -p jarvis-core          # 51 pruebas: Vault, validación, política, confirmaciones, idempotencia, Internet, correo IMAP,
+cargo test -p jarvis-core          # 57 pruebas: Vault, validación, política, confirmaciones, idempotencia, Internet, correo IMAP,
                                    # secretos efímeros y errores (OpenAI simulado), delegación y texto (Claude simulado)
 npm test                           # 15 pruebas: máquina de estados, reintentos, herramientas, controlador con sesión simulada
 npm run typecheck
@@ -29,7 +29,8 @@ Estado al entregar este módulo. ✅ comprobado · 🟡 comprobado parcialmente 
 | Aprobación de una operación de riesgo | ✅ | Pruebas de aprobar/denegar/expirar; en la app real, diálogo «Añadir la tarea…» → Autorizar → tarea escrita y verificada; en la CLI, denegar → `approval_denied` sin escribir. |
 | Sin claves en el frontend ni en el repositorio | ✅ | `npm run check:secrets` (repo + `dist/`), prueba de que la respuesta a la interfaz no contiene la clave larga, `Debug` oculta secretos. |
 | Interfaz de texto sin Realtime | ✅ | `text_interface_works_without_any_credentials`; en la app real, modo comandos sin ninguna clave. Con Claude: `text_interface_with_claude_runs_tools` (simulado). |
-| Hora, tiempo, búsqueda, páginas y correo | 🟡 | Automático con servidores simulados: hora de cualquier país (país → capital, zonas IANA, aviso de países con varias zonas), Open-Meteo, API Responses, páginas (texto, redirecciones, bloqueo de direcciones locales), abrir URL solo tras confirmación, IMAP de solo lectura (EXAMINE + BODY.PEEK, sin comandos de escritura), contraseña errónea. Pendiente con servicios reales: el entorno de desarrollo bloquea Open-Meteo, OpenAI y servidores de correo. |
+| Hora, tiempo, tráfico, vuelos, búsqueda, páginas y correo | 🟡 | Automático con servidores simulados: tráfico de Bogotá (alias casa, ruta con retraso, incidentes ordenados por gravedad), vuelos (días cercanos, el más económico, fechas pasadas y códigos inválidos), hora de cualquier país (país → capital, zonas IANA, aviso de países con varias zonas), Open-Meteo, API Responses, páginas (texto, redirecciones, bloqueo de direcciones locales), abrir URL solo tras confirmación, IMAP de solo lectura (EXAMINE + BODY.PEEK, sin comandos de escritura), contraseña errónea. Pendiente con servicios reales: el entorno de desarrollo bloquea Open-Meteo, OpenAI y servidores de correo. |
+| Modo producción (app instalada) | 🟡 | La app compilada con la interfaz embebida arranca, lee `config.toml` sin variables de entorno y respeta la CSP (comprobado en Linux). Pendiente: instalador en un Mac real. |
 | Documentación de comandos, permisos y arranque | ✅ | `README.md`, `docs/configuration.md`, `docs/security.md`. |
 
 ## Prueba manual con credenciales (pendiente)

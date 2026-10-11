@@ -35,6 +35,8 @@ pub const DAILY_SUMMARY: &str = "daily_summary";
 pub const DELEGATE_TO_CLAUDE: &str = "delegate_to_claude";
 pub const GET_WEATHER: &str = "get_weather";
 pub const GET_TIME: &str = "get_time";
+pub const GET_TRAFFIC: &str = "get_traffic";
+pub const SEARCH_FLIGHTS: &str = "search_flights";
 pub const WEB_SEARCH: &str = "web_search";
 pub const FETCH_PAGE: &str = "fetch_page";
 pub const OPEN_URL: &str = "open_url";
@@ -52,6 +54,10 @@ pub struct Availability {
     pub open_url: bool,
     /// El correo está configurado: `list_emails`, `read_email`.
     pub email: bool,
+    /// Hay clave de TomTom: `get_traffic`.
+    pub traffic: bool,
+    /// Hay clave de SerpApi: `search_flights`.
+    pub flights: bool,
 }
 
 impl Availability {
@@ -61,6 +67,8 @@ impl Availability {
             web_search: true,
             open_url: true,
             email: true,
+            traffic: true,
+            flights: true,
         }
     }
 }
@@ -221,6 +229,43 @@ pub fn catalog(av: Availability) -> Vec<ToolSpec> {
             risk: RiskLevel::Web,
         });
     }
+    if av.traffic {
+        tools.push(ToolSpec {
+            name: GET_TRAFFIC,
+            description: "Tráfico en vivo, por defecto en Bogotá: incidentes (accidentes, cierres, obras, trancones) y, si se indican origen y destino, cuánto se tarda ahora en carro y el retraso por tráfico. 'casa' y 'trabajo' son direcciones guardadas del usuario. Sin destino, solo devuelve los incidentes de la ciudad.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "origin": {"type": "string", "minLength": 1, "maxLength": 200, "description": "Dirección o lugar de salida (p. ej. 'casa', 'Calle 100 con Carrera 15', 'Aeropuerto El Dorado'). Por defecto, casa."},
+                    "destination": {"type": "string", "minLength": 1, "maxLength": 200, "description": "Dirección o lugar de destino (p. ej. 'trabajo', 'Centro Andino')."}
+                },
+                "additionalProperties": false
+            }),
+            risk: RiskLevel::Web,
+        });
+    }
+    if av.flights {
+        tools.push(ToolSpec {
+            name: SEARCH_FLIGHTS,
+            description: "Busca vuelos con precios y horarios reales (Google Flights) para una fecha y, con flexible_days, también los días cercanos para encontrar el más económico. Usa códigos IATA (Bogotá BOG, Medellín MDE, Cali CLO, Cartagena CTG, Miami MIA, Madrid MAD…). Cada día consultado consume una búsqueda del plan del usuario.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "origin": {"type": "string", "minLength": 3, "maxLength": 15, "description": "Código IATA de salida; por defecto el aeropuerto del usuario (BOG)."},
+                    "destination": {"type": "string", "minLength": 3, "maxLength": 15, "description": "Código IATA de destino."},
+                    "date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "Fecha de ida AAAA-MM-DD."},
+                    "return_date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "Fecha de vuelta (solo ida y vuelta)."},
+                    "flexible_days": {"type": "integer", "minimum": 0, "maximum": 3, "description": "Días antes y después a comparar (por defecto 2)."},
+                    "adults": {"type": "integer", "minimum": 1, "maximum": 9},
+                    "cabin": {"type": "string", "enum": ["economy", "premium", "business", "first"]},
+                    "nonstop": {"type": "boolean", "description": "Solo vuelos directos."}
+                },
+                "required": ["destination", "date"],
+                "additionalProperties": false
+            }),
+            risk: RiskLevel::Web,
+        });
+    }
     if av.open_url {
         tools.push(ToolSpec {
             name: OPEN_URL,
@@ -300,6 +345,20 @@ pub enum ToolArgs {
     },
     GetTime {
         location: Option<String>,
+    },
+    GetTraffic {
+        origin: Option<String>,
+        destination: Option<String>,
+    },
+    SearchFlights {
+        origin: Option<String>,
+        destination: String,
+        date: NaiveDate,
+        return_date: Option<NaiveDate>,
+        flexible_days: u32,
+        adults: u32,
+        cabin: &'static str,
+        nonstop: bool,
     },
     WebSearch {
         query: String,
@@ -439,6 +498,26 @@ struct TaskRaw {
 struct WeatherRaw {
     location: Option<String>,
     days: Option<i64>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TrafficRaw {
+    origin: Option<String>,
+    destination: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FlightsRaw {
+    origin: Option<String>,
+    destination: String,
+    date: String,
+    return_date: Option<String>,
+    flexible_days: Option<i64>,
+    adults: Option<i64>,
+    cabin: Option<String>,
+    nonstop: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -609,6 +688,43 @@ pub fn parse_args(name: &str, raw: &Value, av: Availability) -> Result<ToolArgs>
                 days: int_field("days", r.days, 1, 7, 1)?,
             }
         }
+        GET_TRAFFIC => {
+            let r: TrafficRaw = de(value)?;
+            ToolArgs::GetTraffic {
+                origin: opt_text("origin", r.origin, 200)?,
+                destination: opt_text("destination", r.destination, 200)?,
+            }
+        }
+        SEARCH_FLIGHTS => {
+            let r: FlightsRaw = de(value)?;
+            let origin = match opt_text("origin", r.origin, 15)? {
+                Some(o) => Some(crate::flights::normalize_airports(&o)?),
+                None => None,
+            };
+            let date = opt_date("date", Some(r.date))?
+                .ok_or_else(|| JarvisError::invalid("Falta la fecha del vuelo."))?;
+            let return_date = opt_date("return_date", r.return_date)?;
+            if return_date.is_some_and(|rd| rd < date) {
+                return Err(JarvisError::invalid(
+                    "La vuelta no puede ser antes de la ida.",
+                ));
+            }
+            ToolArgs::SearchFlights {
+                origin,
+                destination: crate::flights::normalize_airports(&r.destination)?,
+                date,
+                return_date,
+                flexible_days: int_field("flexible_days", r.flexible_days, 0, 3, 2)? as u32,
+                adults: int_field("adults", r.adults, 1, 9, 1)? as u32,
+                cabin: enum_field(
+                    "cabin",
+                    r.cabin,
+                    &["economy", "premium", "business", "first"],
+                    "economy",
+                )?,
+                nonstop: r.nonstop.unwrap_or(false),
+            }
+        }
         GET_TIME => {
             let r: TimeRaw = de(value)?;
             ToolArgs::GetTime {
@@ -699,6 +815,15 @@ impl ToolArgs {
                 Some(l) => format!("Consultar la hora en {l}"),
                 None => "Consultar la hora".into(),
             },
+            ToolArgs::GetTraffic { destination, .. } => match destination {
+                Some(d) => format!("Consultar el tráfico hasta {d}"),
+                None => "Consultar el tráfico".into(),
+            },
+            ToolArgs::SearchFlights {
+                destination, date, ..
+            } => {
+                format!("Buscar vuelos a {destination} el {date}")
+            }
             ToolArgs::WebSearch { query } => format!("Buscar en Internet «{query}»"),
             ToolArgs::FetchPage { url, .. } => format!("Leer la página {url}"),
             ToolArgs::OpenUrl { url } => format!("Abrir en el navegador: {url}"),

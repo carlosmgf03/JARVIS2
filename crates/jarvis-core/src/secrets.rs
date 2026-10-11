@@ -45,6 +45,10 @@ pub enum Provider {
     Anthropic,
     /// Contraseña de aplicación del correo (IMAP).
     Email,
+    /// Clave de TomTom (tráfico).
+    TomTom,
+    /// Clave de SerpApi (vuelos de Google Flights).
+    SerpApi,
 }
 
 impl Provider {
@@ -53,6 +57,8 @@ impl Provider {
             Provider::OpenAi => "OPENAI_API_KEY",
             Provider::Anthropic => "ANTHROPIC_API_KEY",
             Provider::Email => "JARVIS_EMAIL_PASSWORD",
+            Provider::TomTom => "TOMTOM_API_KEY",
+            Provider::SerpApi => "SERPAPI_API_KEY",
         }
     }
 
@@ -61,6 +67,8 @@ impl Provider {
             Provider::OpenAi => "openai",
             Provider::Anthropic => "anthropic",
             Provider::Email => "email",
+            Provider::TomTom => "tomtom",
+            Provider::SerpApi => "serpapi",
         }
     }
 
@@ -69,6 +77,8 @@ impl Provider {
             "openai" => Some(Provider::OpenAi),
             "anthropic" | "claude" => Some(Provider::Anthropic),
             "email" | "correo" | "mail" => Some(Provider::Email),
+            "tomtom" | "trafico" | "tráfico" => Some(Provider::TomTom),
+            "serpapi" | "vuelos" => Some(Provider::SerpApi),
             _ => None,
         }
     }

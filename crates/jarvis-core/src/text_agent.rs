@@ -281,6 +281,23 @@ impl TextAgent {
                     json!({"location": rest})
                 },
             )),
+            "/trafico" | "/tráfico" => Some(call(
+                tools::GET_TRAFFIC,
+                if rest.is_empty() {
+                    json!({})
+                } else {
+                    json!({"destination": rest})
+                },
+            )),
+            "/vuelos" => {
+                // /vuelos MDE 2026-10-20 [2026-10-25]
+                let parts: Vec<&str> = rest.split_whitespace().collect();
+                let mut a = json!({"destination": parts.first().copied().unwrap_or(""), "date": parts.get(1).copied().unwrap_or("")});
+                if let Some(r) = parts.get(2) {
+                    a["return_date"] = json!(r);
+                }
+                Some(call(tools::SEARCH_FLIGHTS, a))
+            }
             "/web" => Some(call(tools::WEB_SEARCH, json!({"query": rest}))),
             "/pagina" | "/página" => Some(call(tools::FETCH_PAGE, json!({"url": rest}))),
             "/abrir" => Some(call(tools::OPEN_URL, json!({"url": rest}))),
@@ -351,6 +368,8 @@ pub const COMMAND_HELP: &str = "Comandos disponibles:\n\
 /tarea <texto> [@AAAA-MM-DD] — añadir una tarea (pide confirmación)\n\
 /clima [ciudad o país] — tiempo actual y previsión\n\
 /hora [ciudad o país] — hora local en cualquier lugar\n\
+/trafico [destino] — tráfico en Bogotá (y tiempo hasta el destino)\n\
+/vuelos <IATA destino> <AAAA-MM-DD> [vuelta] — precios y horarios, con días cercanos\n\
 /web <consulta> — buscar en Internet\n\
 /pagina <dirección> — leer el texto de una página\n\
 /abrir <dirección> — abrir una página en el navegador (pide confirmación)\n\
@@ -504,6 +523,79 @@ pub fn format_outcome(o: &ToolOutcome) -> String {
                 ""
             }
         ),
+        tools::GET_TRAFFIC => {
+            let mut out = format!("Tráfico en {}", s(&d, "area"));
+            if let Some(r) = d["route"].as_object() {
+                out.push_str(&format!(
+                    "\nDe {} a {}: {} min con tráfico ({} min de retraso), {} km",
+                    r["from"].as_str().unwrap_or(""),
+                    r["to"].as_str().unwrap_or(""),
+                    r["minutes_with_traffic"],
+                    r["delay_minutes"],
+                    r["distance_km"]
+                ));
+            }
+            let inc = d["incidents"].as_array().cloned().unwrap_or_default();
+            if inc.is_empty() {
+                out.push_str("\nSin incidentes destacados ahora mismo.");
+            }
+            for i in inc {
+                out.push_str(&format!(
+                    "\n• {} ({}): {} — {}",
+                    s(&i, "kind"),
+                    s(&i, "severity"),
+                    s(&i, "road"),
+                    s(&i, "description")
+                ));
+            }
+            out.push_str("\nFuente: TomTom");
+            out
+        }
+        tools::SEARCH_FLIGHTS => {
+            let cur = s(&d, "currency");
+            let fmt = |o: &Value| {
+                format!(
+                    "{} {} — {} · sale {} · llega {} · {} escala(s)",
+                    o["price"],
+                    cur,
+                    s(o, "airlines"),
+                    s(o, "departure"),
+                    s(o, "arrival"),
+                    o["stops"]
+                )
+            };
+            let mut out = format!(
+                "Vuelos {} ({}), {}",
+                s(&d, "route"),
+                s(&d, "trip"),
+                s(&d, "requested_date")
+            );
+            for o in d["options"].as_array().into_iter().flatten() {
+                out.push_str(&format!("\n• {}", fmt(o)));
+            }
+            out.push_str("\n\nMás barato por día:");
+            for day in d["by_date"].as_array().into_iter().flatten() {
+                match day["cheapest"].as_object() {
+                    Some(_) => out.push_str(&format!(
+                        "\n• {}: {} {} ({})",
+                        s(day, "date"),
+                        day["cheapest"]["price"],
+                        cur,
+                        s(&day["cheapest"], "airlines")
+                    )),
+                    None => out.push_str(&format!("\n• {}: sin resultados", s(day, "date"))),
+                }
+            }
+            if let Some(c) = d["cheapest_overall"].as_object() {
+                out.push_str(&format!(
+                    "\n\nMás económico: {} — {}",
+                    c["date"].as_str().unwrap_or(""),
+                    fmt(&d["cheapest_overall"])
+                ));
+            }
+            out.push_str(&format!("\n{}", s(&d, "note")));
+            out
+        }
         tools::WEB_SEARCH => {
             let mut out = s(&d, "answer");
             for src in d["sources"].as_array().into_iter().flatten() {

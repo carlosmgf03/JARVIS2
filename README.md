@@ -18,7 +18,9 @@ cargo run -p jarvis-core --bin jarvis -- doctor              # comprueba clave, 
 npm run app:dev                                              # abre JARVIS
 ```
 
-Pulsa **Hablar con JARVIS**, concede el micrófono y habla. **Finalizar sesión** apaga el micrófono.
+Pulsa **Inicializar JARVIS**, concede el micrófono y habla. **Finalizar** apaga el micrófono.
+
+Para usarlo como una app normal (sin terminal): `npm run app:install` la instala en **Aplicaciones** (ver `docs/configuration.md`).
 
 Sin clave de OpenAI, la app arranca en **modo de prueba** (claramente indicado): prueba local del micrófono e interfaz de texto con comandos (`/ayuda`, `/tareas hoy`, `/buscar …`, `/resumen`, `/nota …`, `/tarea …`).
 

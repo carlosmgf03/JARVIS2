@@ -6,6 +6,7 @@
 |---|---|---|
 | `OPENAI_API_KEY` (larga duración) | Variable de entorno o almacén del sistema (Llavero de macOS, Administrador de credenciales de Windows, Secret Service en Linux), servicio `com.jarvis.desktop`, usuario `openai`. | Solo el proceso Rust (`jarvis-core`). |
 | `ANTHROPIC_API_KEY` (opcional) | Igual, usuario `anthropic`. | Solo el proceso Rust. |
+| Claves de TomTom y SerpApi (opcionales) | Igual, usuarios `tomtom` y `serpapi`, o `TOMTOM_API_KEY` / `SERPAPI_API_KEY`. | Solo el proceso Rust. |
 | Contraseña de aplicación del correo (opcional) | Igual, usuario `email` (`jarvis secrets set email`) o `JARVIS_EMAIL_PASSWORD`. Nunca la contraseña principal de la cuenta. | Solo el proceso Rust. |
 | Secreto efímero Realtime (`ek_…`) | Memoria del WebView durante la conexión. Caduca en `OPENAI_REALTIME_SECRET_TTL_SECONDS` (600 s por defecto). | El frontend, para abrir la sesión. No se guarda ni se registra. |
 
@@ -81,6 +82,8 @@ Páginas web, resultados de búsqueda y correos pueden contener instrucciones ma
 | Interfaz de texto con Claude | Mensajes, historial compacto y resultados de herramientas | Anthropic |
 | `get_weather` / `get_time` | Nombre del lugar y sus coordenadas (la hora se calcula en el equipo; con una zona IANA directa no sale nada) | Open-Meteo |
 | `web_search` | La consulta de búsqueda | OpenAI (que busca en Internet) |
+| `get_traffic` | Direcciones de origen y destino (o los alias casa/trabajo ya resueltos) | TomTom |
+| `search_flights` | Aeropuertos, fechas y número de pasajeros | SerpApi (Google Flights) |
 | `fetch_page` | Petición HTTP a la página indicada (como un navegador) | El sitio web |
 | `open_url` | Nada desde JARVIS: la abre tu navegador | El sitio web |
 | `list_emails` / `read_email` | Tus credenciales viajan solo a tu servidor IMAP (TLS). Remitentes, asuntos y el texto del correo leído pasan a OpenAI como resultado de la herramienta durante la sesión de voz | Tu proveedor de correo; OpenAI |

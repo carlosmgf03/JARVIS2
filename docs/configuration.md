@@ -88,6 +88,27 @@ Las tareas se leen con la sintaxis de casillas de Obsidian (`- [ ]`, `- [x]`) y 
 
 Leer páginas (`fetch_page`) y abrirlas en el navegador (`open_url`) no necesitan configuración.
 
+### Tráfico (Bogotá por defecto)
+
+| Variable | Por defecto | Descripción |
+|---|---|---|
+| `TOMTOM_API_KEY` | — | Mejor con `jarvis secrets set tomtom`. Clave gratuita en <https://developer.tomtom.com> (crear cuenta → «API keys»). Sin ella, JARVIS informa del tráfico con la búsqueda web (Secretaría de Movilidad, @BogotaTransito). |
+| `JARVIS_HOME_ADDRESS` / `JARVIS_WORK_ADDRESS` | — | Direcciones para «¿cuánto tardo al trabajo?». |
+| `JARVIS_TRAFFIC_CITY` | `Bogotá` | Nombre de la ciudad. |
+| `JARVIS_TRAFFIC_COUNTRY` | `CO` | País para buscar direcciones. |
+| `JARVIS_TRAFFIC_LAT` / `JARVIS_TRAFFIC_LON` | `4.711` / `-74.0721` | Centro de la ciudad. |
+| `JARVIS_TRAFFIC_BBOX` | `-74.23,4.46,-73.99,4.84` | Rectángulo de incidentes (Bogotá). |
+
+No he podido confirmar el grado de cobertura de TomTom en Colombia; si no devuelve datos útiles, JARVIS recurre a la búsqueda web.
+
+### Vuelos
+
+| Variable | Por defecto | Descripción |
+|---|---|---|
+| `SERPAPI_API_KEY` | — | Mejor con `jarvis secrets set serpapi`. Cuenta gratuita en <https://serpapi.com> (250 búsquedas al mes; cada día consultado cuenta como una). Datos de Google Flights. Sin ella, JARVIS usa la búsqueda web. |
+| `JARVIS_HOME_AIRPORT` | `BOG` | Aeropuerto de salida por defecto. |
+| `JARVIS_CURRENCY` | `COP` | Moneda de los precios. |
+
 ### Correo (opcional, solo lectura)
 
 | Variable | Por defecto | Descripción |
@@ -130,6 +151,16 @@ Cómo obtener la contraseña de aplicación:
 - **Linux**: la app concede el permiso dentro del WebView; el sistema (PipeWire/PulseAudio) debe tener una fuente de entrada. Si tu WebKitGTK no incluye WebRTC, JARVIS usa automáticamente el transporte WebSocket (se indica en el panel de voz).
 
 Si falta el permiso, el micrófono o la conexión, la interfaz muestra el motivo y el código de error. Sin clave de OpenAI se muestra el **modo de prueba**: prueba local del micrófono e interfaz de texto, sin simular la voz real.
+
+## Instalar como aplicación (macOS)
+
+```bash
+npm run app:install
+```
+
+Pregunta una sola vez por la carpeta de Obsidian, la ciudad, las direcciones de casa y trabajo y el correo; los guarda en `config.toml` (sin claves), compila la app y la copia a **Aplicaciones**. Después se abre con **Cmd + Espacio → «JARVIS»**, desde el Dock o con **«Oye Siri, abre JARVIS»**. En el panel ☰ puedes activar «Empezar a escuchar al abrir JARVIS».
+
+La primera vez que la app use el Llavero, macOS preguntará si JARVIS puede usar la clave guardada: pulsa **Permitir siempre**. Tras reinstalar una versión nueva puede volver a preguntarlo.
 
 ## Producción
 

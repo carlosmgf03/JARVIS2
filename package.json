@@ -13,7 +13,8 @@
     "check:secrets": "node scripts/check-secrets.mjs",
     "tauri": "tauri",
     "app:dev": "tauri dev",
-    "app:build": "tauri build"
+    "app:build": "tauri build",
+    "app:install": "bash scripts/instalar-mac.sh"
   },
   "dependencies": {
     "@openai/agents": "0.18.0",

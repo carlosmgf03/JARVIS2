@@ -10,6 +10,7 @@ pub mod config;
 pub mod email;
 pub mod error;
 pub mod executor;
+pub mod flights;
 pub mod http;
 pub mod persona;
 pub mod places;
@@ -18,6 +19,7 @@ pub mod realtime;
 pub mod secrets;
 pub mod text_agent;
 pub mod tools;
+pub mod traffic;
 pub mod transcripts;
 pub mod vault;
 pub mod web;
@@ -81,6 +83,9 @@ pub struct Status {
     pub web_search: bool,
     pub email: Option<String>,
     pub weather_location: Option<String>,
+    pub traffic: bool,
+    pub traffic_city: String,
+    pub flights: bool,
     /// Verdadero si hay credenciales para intentar una sesión de voz real.
     pub voice_available: bool,
     /// Motivos por los que la app está en modo de prueba (vacío = todo listo).
@@ -139,6 +144,8 @@ impl Jarvis {
                 let c = credentials.clone();
                 Arc::new(move |p| c.get(p))
             },
+            traffic: Arc::new(crate::traffic::TrafficClient::new(config.traffic.clone())),
+            flights: Arc::new(crate::flights::FlightsClient::new(config.flights.clone())),
         }));
         let text = TextAgent::new(executor.clone(), claude, config.text_provider);
         let transcripts = TranscriptStore::new(
@@ -209,6 +216,9 @@ impl Jarvis {
                 .then(|| self.config.email.address.clone())
                 .flatten(),
             weather_location: self.config.web.weather_location.clone(),
+            traffic: self.executor.availability().traffic,
+            traffic_city: self.config.traffic.city.clone(),
+            flights: self.executor.availability().flights,
             limitations,
         }
     }

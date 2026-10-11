@@ -131,6 +131,8 @@ export const TOOL_LABEL: Record<string, string> = {
   delegate_to_claude: 'Consultando a Claude',
   get_weather: 'Consultando el tiempo',
   get_time: 'Consultando la hora',
+  get_traffic: 'Consultando el tráfico',
+  search_flights: 'Buscando vuelos',
   web_search: 'Buscando en Internet',
   fetch_page: 'Leyendo la página',
   open_url: 'Abriendo el navegador',

@@ -554,3 +554,183 @@ async fn email_wrong_password_and_missing_config() {
         .any(|t| t.name.contains("email")));
     assert!(h.jarvis.status().email.is_none());
 }
+
+// ------------------------------------------------------------------ tráfico
+
+#[tokio::test]
+async fn traffic_in_bogota_with_home_alias() {
+    use wiremock::matchers::path_regex;
+    let tt = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/search/2/geocode/Calle%20100.*\.json$"))
+        .and(query_param("countrySet", "CO"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"results": [
+            {"position": {"lat": 4.686, "lon": -74.046}, "address": {"freeformAddress": "Calle 100 # 15-20, Bogotá"}}
+        ]})))
+        .mount(&tt)
+        .await;
+    Mock::given(method("GET"))
+        .and(path_regex(r"^/search/2/geocode/Centro%20Andino\.json$"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"results": [
+            {"position": {"lat": 4.666, "lon": -74.052}, "address": {"freeformAddress": "Centro Andino, Bogotá"}}
+        ]})))
+        .mount(&tt)
+        .await;
+    Mock::given(method("GET"))
+        .and(path_regex(
+            r"^/routing/1/calculateRoute/4\.686,-74\.046:4\.666,-74\.052/json$",
+        ))
+        .and(query_param("traffic", "true"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(json!({"routes": [{"summary": {
+            "lengthInMeters": 3400, "travelTimeInSeconds": 1500, "trafficDelayInSeconds": 720,
+            "noTrafficTravelTimeInSeconds": 780, "arrivalTime": "2026-10-11T18:25:00-05:00"}}]})),
+        )
+        .mount(&tt)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/traffic/services/5/incidentDetails"))
+        .and(query_param("bbox", "-74.23,4.46,-73.99,4.84"))
+        .and(query_param("language", "es-ES"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"incidents": [
+            {"properties": {"iconCategory": 6, "magnitudeOfDelay": 1, "delay": 120, "from": "Calle 26", "to": "Carrera 30", "events": [{"description": "Tráfico lento"}]}},
+            {"properties": {"iconCategory": 1, "magnitudeOfDelay": 3, "delay": 900, "from": "Autopista Norte", "to": "Calle 127", "roadNumbers": ["Autonorte"], "events": [{"description": "Accidente"}]}}
+        ]})))
+        .mount(&tt)
+        .await;
+    let h = harness(
+        &[
+            ("JARVIS_TOMTOM_BASE_URL", &tt.uri()),
+            ("JARVIS_HOME_ADDRESS", "Calle 100 # 15-20"),
+        ],
+        &[("TOMTOM_API_KEY", "tt-key")],
+        None,
+    );
+    let out = run(
+        &h,
+        "tr1",
+        "get_traffic",
+        json!({"destination": "Centro Andino"}),
+    )
+    .await;
+    assert_eq!(out.status, OutcomeStatus::Ok, "{out:?}");
+    let d = out.data.unwrap();
+    assert_eq!(d["area"], "Bogotá");
+    assert_eq!(d["route"]["minutes_with_traffic"], 25.0);
+    assert_eq!(d["route"]["delay_minutes"], 12.0);
+    assert_eq!(
+        d["incidents"][0]["kind"], "accidente",
+        "lo más grave primero"
+    );
+    assert_eq!(
+        d["incidents"][0]["road"],
+        "Autonorte: Autopista Norte → Calle 127"
+    );
+
+    let r = h.jarvis.text.send("/trafico", None).await.unwrap();
+    assert!(
+        r.reply.contains("trancón") && r.reply.contains("TomTom"),
+        "{}",
+        r.reply
+    );
+}
+
+#[tokio::test]
+async fn traffic_and_flights_need_their_keys() {
+    let h = harness(&[], &[], None);
+    let names: Vec<_> = h.jarvis.executor.catalog().iter().map(|t| t.name).collect();
+    assert!(!names.contains(&"get_traffic") && !names.contains(&"search_flights"));
+    let s = h.jarvis.status();
+    assert!(!s.traffic && !s.flights);
+    assert_eq!(s.traffic_city, "Bogotá");
+}
+
+// ------------------------------------------------------------------- vuelos
+
+fn flight(price: u64, airline: &str, dep: &str) -> Value {
+    json!({"price": price, "total_duration": 60, "flights": [{
+        "airline": airline, "flight_number": "XX 1",
+        "departure_airport": {"id": "BOG", "time": dep},
+        "arrival_airport": {"id": "MDE", "time": dep}}]})
+}
+
+#[tokio::test]
+async fn flights_compare_nearby_days_and_find_cheapest() {
+    let sa = MockServer::start().await;
+    let day = |date: &str, flights: Vec<Value>| {
+        Mock::given(method("GET"))
+            .and(path("/search.json"))
+            .and(query_param("engine", "google_flights"))
+            .and(query_param("departure_id", "BOG"))
+            .and(query_param("arrival_id", "MDE"))
+            .and(query_param("currency", "COP"))
+            .and(query_param("outbound_date", date))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "best_flights": flights,
+                "price_insights": {"lowest_price": 250000, "price_level": "low", "typical_price_range": [260000, 400000]}
+            })))
+    };
+    let today = chrono::Local::now().date_naive();
+    let d = |n: u64| {
+        (today + chrono::Days::new(n))
+            .format("%Y-%m-%d")
+            .to_string()
+    };
+    day(
+        &d(10),
+        vec![
+            flight(320000, "Avianca", "06:00"),
+            flight(290000, "LATAM", "09:30"),
+        ],
+    )
+    .mount(&sa)
+    .await;
+    day(&d(9), vec![flight(240000, "Wingo", "05:10")])
+        .mount(&sa)
+        .await;
+    day(&d(11), vec![flight(350000, "Avianca", "07:00")])
+        .mount(&sa)
+        .await;
+
+    let h = harness(
+        &[("JARVIS_SERPAPI_BASE_URL", &sa.uri())],
+        &[("SERPAPI_API_KEY", "sa-key")],
+        None,
+    );
+    let out = run(
+        &h,
+        "f1",
+        "search_flights",
+        json!({"destination": "mde", "date": d(10), "flexible_days": 1}),
+    )
+    .await;
+    assert_eq!(out.status, OutcomeStatus::Ok, "{out:?}");
+    let r = out.data.unwrap();
+    assert_eq!(r["route"], "BOG → MDE", "origen por defecto: BOG");
+    assert_eq!(
+        r["options"][0]["price"], 290000.0,
+        "opciones del día pedido ordenadas por precio"
+    );
+    assert_eq!(r["cheapest_overall"]["date"], d(9));
+    assert_eq!(r["cheapest_overall"]["airlines"], "Wingo");
+    assert_eq!(r["by_date"].as_array().unwrap().len(), 3);
+    assert_eq!(r["searches_used"], 3);
+    assert_eq!(r["price_insights"]["price_level"], "low");
+
+    let past = run(
+        &h,
+        "f2",
+        "search_flights",
+        json!({"destination": "MDE", "date": "2020-01-01"}),
+    )
+    .await;
+    assert_eq!(past.error.unwrap().code, ErrorCode::InvalidArguments);
+    let bad = run(
+        &h,
+        "f3",
+        "search_flights",
+        json!({"destination": "Medellín", "date": d(10)}),
+    )
+    .await;
+    assert_eq!(bad.error.unwrap().code, ErrorCode::InvalidArguments);
+}
