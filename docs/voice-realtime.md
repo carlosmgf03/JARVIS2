@@ -30,7 +30,7 @@ Detalle de implementación de la conversación por voz. Para la visión general,
 Se envía igual al crear el secreto (servidor) y en el `session.update` inicial del SDK:
 
 - `output_modalities: ["audio"]`, PCM 24 kHz.
-- `audio.output.voice`: la elegida (por defecto `marin`).
+- `audio.output.voice`: la elegida (por defecto `cedar`, masculina y grave).
 - `audio.input.turn_detection`: `semantic_vad` (`eagerness: auto`) o `server_vad` (umbral 0.6, silencio 600 ms), siempre con `create_response: true` e `interrupt_response: true`.
 - `audio.input.noise_reduction`: `far_field` por defecto.
 - `audio.input.transcription`: `gpt-4o-mini-transcribe` con `language: "es"` (desactivable).
@@ -38,7 +38,7 @@ Se envía igual al crear el secreto (servidor) y en el `session.update` inicial 
 
 ## Personalidad
 
-`persona.rs`: profesional, inteligente, serena y resolutiva; español natural; respuestas de 1–3 frases ampliables; cede la palabra al ser interrumpida; admite cuando no sabe; no lee código, JSON, rutas, registros ni documentos largos salvo petición; consulta la Vault antes de afirmar nada sobre el usuario; solo da por hecha una acción con `ok: true`; recuerda que el audio se procesa en OpenAI. No se clona ni imita ninguna voz real: solo voces oficiales.
+`persona.rs`: profesional, inteligente, serena y resolutiva, con estilo de mayordomo digital (cortés, preciso, humor seco muy sutil); español natural; respuestas de 1–3 frases ampliables; cede la palabra al ser interrumpida; admite cuando no sabe; no lee código, JSON, rutas, registros ni documentos largos salvo petición; consulta la Vault antes de afirmar nada sobre el usuario; solo da por hecha una acción con `ok: true`; recuerda que el audio se procesa en OpenAI. No se clona ni imita ninguna voz real (tampoco la del actor que dio voz a JARVIS en el cine): solo voces oficiales; `cedar` se eligió por ser masculina y grave.
 
 ## Estados de la interfaz
 

@@ -87,3 +87,12 @@ Ante `connection_change: disconnected` o un fallo transitorio: se cierra la sesi
 ## Preparado para palabra de activación (no implementado)
 
 El micrófono solo se abre con `VoiceController.start()`. Una futura palabra de activación local se añadiría como un detector independiente que, al dispararse, llama a `start()`. No hay escucha permanente en esta fase. Ver `docs/roadmap.md`.
+
+## Interfaz
+
+Pantalla única de estilo HUD (oscura, dorada) centrada en un **reactor** animado (`src/components/Reactor.tsx`):
+
+- **Reposo**: reactor pequeño, título «JARVIS» y botón **Inicializar JARVIS**. Si falta la clave, el bloque «MODO DE PRUEBA» lo indica y permite probar el micrófono en local.
+- **Sesión activa**: reactor a pantalla completa; los anillos cambian de ritmo según el estado y el núcleo late con el nivel de audio (tu voz y la de JARVIS, medidos en local con `src/voice/levels.ts`, sin grabar nada). Debajo, la etiqueta de estado («En espera», «Escuchando», «Procesando», «Respondiendo», «Buscando en tus notas»…), y abajo los controles: silenciar, detener, volumen y finalizar.
+- **Indicador de micrófono** fijo arriba a la izquierda; **conversación** reciente abajo a la izquierda.
+- **Panel lateral** (☰): interfaz de texto, voz y modo altavoz, actividad verificada, uso y privacidad.

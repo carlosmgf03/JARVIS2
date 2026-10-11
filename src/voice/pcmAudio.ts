@@ -6,6 +6,8 @@
 // transporte WebSocket oficial del SDK y esta clase captura el micrófono y
 // reproduce el audio recibido.
 
+import { analyserLevel } from './levels';
+
 export const SAMPLE_RATE = 24_000;
 const CHUNK_SAMPLES = 2_400; // 100 ms
 
@@ -30,6 +32,8 @@ export class PcmAudioIO {
   private node: AudioWorkletNode | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
   private gain: GainNode | null = null;
+  private analyser: AnalyserNode | null = null;
+  private levelBuf = new Uint8Array(512);
   private pending: Float32Array[] = [];
   private pendingLen = 0;
   private playing = new Set<AudioBufferSourceNode>();
@@ -51,6 +55,9 @@ export class PcmAudioIO {
     this.source.connect(this.node);
     this.gain = this.ctx.createGain();
     this.gain.connect(this.ctx.destination);
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 512;
+    this.gain.connect(this.analyser);
     if (this.ctx.state === 'suspended') await this.ctx.resume();
   }
 
@@ -101,6 +108,11 @@ export class PcmAudioIO {
     }
     this.playing.clear();
     this.nextTime = 0;
+  }
+
+  /** Nivel 0–1 del audio que se está reproduciendo (para la animación). */
+  outputLevel(): number {
+    return analyserLevel(this.analyser, this.levelBuf);
   }
 
   setVolume(v: number): void {

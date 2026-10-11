@@ -17,14 +17,15 @@ use crate::error::{ErrorCode, JarvisError, Result};
 use crate::policy::{Decision, Policy};
 
 pub const DEFAULT_REALTIME_MODEL: &str = "gpt-realtime-2.1";
-pub const DEFAULT_REALTIME_VOICE: &str = "marin";
+/// Voz masculina y grave, la más cercana al estilo de JARVIS sin imitar a nadie.
+pub const DEFAULT_REALTIME_VOICE: &str = "cedar";
 pub const DEFAULT_TRANSCRIPTION_MODEL: &str = "gpt-4o-mini-transcribe";
 pub const DEFAULT_CLAUDE_MODEL: &str = "claude-opus-5-5";
 
 /// Voces oficiales de salida de Realtime. `marin` y `cedar` son las
 /// recomendadas por OpenAI para máxima naturalidad; todas son multilingües.
 pub const REALTIME_VOICES: &[&str] = &[
-    "marin", "cedar", "alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse",
+    "cedar", "marin", "alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -316,7 +317,7 @@ mod tests {
     fn defaults_are_documented_values() {
         let c = cfg(&[]).unwrap();
         assert_eq!(c.realtime.model, DEFAULT_REALTIME_MODEL);
-        assert_eq!(c.realtime.voice, "marin");
+        assert_eq!(c.realtime.voice, "cedar");
         assert_eq!(c.policy.write, Decision::Confirm);
         assert!(!c.save_transcripts);
         assert_eq!(c.realtime.turn_detection, TurnDetection::SemanticVad);

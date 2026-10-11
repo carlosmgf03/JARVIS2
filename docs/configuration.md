@@ -48,7 +48,7 @@ Usa las mismas claves que las variables de entorno (ver `docs/config.example.tom
 |---|---|---|
 | `OPENAI_API_KEY` | — | Clave de larga duración. Preferible guardarla con `jarvis secrets set openai`. |
 | `OPENAI_REALTIME_MODEL` | `gpt-realtime-2.1` | Modelo Realtime. Es el predeterminado del SDK `@openai/agents` 0.18.0. Alternativa más barata: `gpt-realtime-2.1-mini`. Verifícalo con `jarvis doctor`. |
-| `OPENAI_REALTIME_VOICE` | `marin` | Voz de salida. Opciones oficiales: `marin`, `cedar` (recomendadas, más naturales), `alloy`, `ash`, `ballad`, `coral`, `echo`, `sage`, `shimmer`, `verse`. Todas hablan español; se puede cambiar por sesión desde la interfaz. |
+| `OPENAI_REALTIME_VOICE` | `cedar` | Voz de salida. `cedar` es masculina y grave (estilo JARVIS). Opciones oficiales: `cedar`, `marin` (las dos recomendadas, más naturales), `alloy`, `ash`, `ballad`, `coral`, `echo`, `sage`, `shimmer`, `verse`. Todas hablan español; se puede cambiar por sesión desde la interfaz. |
 | `OPENAI_REALTIME_TRANSCRIPTION_MODEL` | `gpt-4o-mini-transcribe` | Transcripción de tu voz para mostrarla. `off` la desactiva (ahorra coste; la conversación sigue funcionando). |
 | `JARVIS_LANGUAGE` | `es` | Idioma indicado al transcriptor. |
 | `OPENAI_REALTIME_VAD` | `semantic_vad` | Detección de turno. `semantic_vad` respeta pausas naturales; `server_vad` usa silencio. |

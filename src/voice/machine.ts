@@ -108,13 +108,25 @@ export function voiceReducer(s: VoiceState, e: VoiceEvent): VoiceState {
 }
 
 export const PHASE_LABEL: Record<Phase, string> = {
-  idle: 'Desconectado',
-  requesting_mic: 'Solicitando micrófono…',
-  connecting: 'Conectando…',
-  listening: 'Escuchando',
-  user_speaking: 'Te escucho…',
-  processing: 'Pensando…',
-  speaking: 'Hablando',
-  reconnecting: 'Reconectando…',
+  idle: 'En reposo',
+  requesting_mic: 'Solicitando micrófono',
+  connecting: 'Inicializando',
+  listening: 'En espera',
+  user_speaking: 'Escuchando',
+  processing: 'Procesando',
+  speaking: 'Respondiendo',
+  reconnecting: 'Reconectando',
   error: 'Error',
+};
+
+/** Qué está haciendo JARVIS mientras ejecuta cada herramienta. */
+export const TOOL_LABEL: Record<string, string> = {
+  search_notes: 'Buscando en tus notas',
+  read_note: 'Leyendo nota',
+  list_tasks: 'Consultando tareas',
+  list_projects: 'Consultando proyectos',
+  daily_summary: 'Preparando el resumen del día',
+  create_note: 'Creando nota',
+  add_task: 'Añadiendo tarea',
+  delegate_to_claude: 'Consultando a Claude',
 };

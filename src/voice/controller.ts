@@ -21,6 +21,7 @@ import type { Backend } from '../lib/backend';
 import { toJarvisError } from '../lib/backend';
 import type { JarvisError, RealtimeSessionResponse, ToolOutcome, TranscriptEntry } from '../lib/types';
 import { initialVoiceState, isBusy, isSessionActive, voiceReducer, type VoiceEvent, type VoiceState } from './machine';
+import { LevelMeter } from './levels';
 import { PcmAudioIO } from './pcmAudio';
 import { backoffMs, shouldRetry } from './reconnect';
 import { buildRealtimeTools, type ToolHooks } from './tools';
@@ -149,6 +150,7 @@ export class VoiceController {
   private startedAt = 0;
   private model = '';
   private userMuted = false;
+  private meter = new LevelMeter();
   private readonly audio: HTMLAudioElement;
   private readonly sessionFactory: SessionFactory;
   private readonly getUserMedia: (c: MediaStreamConstraints) => Promise<MediaStream>;
@@ -214,6 +216,7 @@ export class VoiceController {
       return;
     }
     if (this.closing) return this.releaseMedia();
+    this.meter.attachInput(this.stream);
     this.dispatch({ type: 'MIC_GRANTED' });
 
     try {
@@ -398,6 +401,8 @@ export class VoiceController {
   }
 
   private releaseMedia() {
+    this.meter.close();
+    this.meter = new LevelMeter();
     for (const t of this.stream?.getTracks() ?? []) t.stop();
     this.stream = null;
     this.audio.pause();
@@ -455,6 +460,19 @@ export class VoiceController {
     if (!this.session || !isSessionActive(this.snapshot.state)) return false;
     this.session.sendMessage(text);
     return true;
+  }
+
+  /**
+   * Niveles de audio 0–1 para animar la interfaz: `input` (tu voz) y
+   * `output` (la voz de JARVIS). Solo lectura local; no graba nada.
+   */
+  levels(): { input: number; output: number } {
+    if (!this.session) return { input: 0, output: 0 };
+    if (!this.pcm && this.audio.srcObject instanceof MediaStream) this.meter.attachOutput(this.audio.srcObject);
+    return {
+      input: this.userMuted ? 0 : this.meter.inputLevel(),
+      output: this.pcm ? this.pcm.outputLevel() : this.meter.outputLevel(),
+    };
   }
 
   setApprovalPending(pending: boolean): void {
