@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-text-reset"
+description = "Enables the text_reset command without any pre-configured scope."
+commands.allow = ["text_reset"]
+
+[[permission]]
+identifier = "deny-text-reset"
+description = "Denies the text_reset command without any pre-configured scope."
+commands.deny = ["text_reset"]
